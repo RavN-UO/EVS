@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EVS — Nos primes, notre priorité</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --border: #d4dae0;
+    --text: #2b2b30;
+    --muted: #6a6470;
+    --accent: #8c2a52;
+    --accent-dark: #6d2040;
+    --total-bg: #5a2147;
+    --total-bg2: #8c2a52;
+    --total-text: #ffffff;
+    --reset-bg: #f0edf1;
+    --stripe-dark: #2b2b30;
+    --ok: #1a7f37;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.4;
+    padding: 16px;
+  }
+
+  .wrap { max-width: 720px; margin: 0 auto; }
+
+  header {
+    margin-bottom: 22px;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  /* Angles de cadre à rayures (côtés gauche/droit + amorces horizontales) */
+  .bracket {
+    position: relative;
+    width: 22px;
+    flex: 0 0 22px;
+  }
+  .bracket span {
+    position: absolute;
+    background: repeating-linear-gradient(
+      -45deg,
+      var(--accent) 0 12px,
+      var(--stripe-dark) 12px 24px
+    );
+    border-radius: 1px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .bracket .side { top: 0; bottom: 0; width: 18px; }
+  .bracket .top  { top: 0; height: 14px; width: 32px; }
+  .bracket .bot  { bottom: 0; height: 14px; width: 32px; }
+  .bracket.left .side,
+  .bracket.left .top,
+  .bracket.left .bot { left: 0; }
+  .bracket.right .side,
+  .bracket.right .top,
+  .bracket.right .bot { right: 0; }
+
+  .banner-text {
+    text-align: center;
+    padding: 14px 22px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .banner-text .b-evs {
+    font-size: 3.1rem;
+    line-height: 1;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: 0.14em;
+    text-indent: 0.14em;
+    margin-bottom: 9px;
+  }
+  .banner-text .b-line1 {
+    font-size: 0.95rem;
+    color: var(--accent);
+    letter-spacing: 0.22em;
+    text-indent: 0.22em;
+    line-height: 1.15;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .banner-text .b-line2 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: 0.05em;
+    text-indent: 0.05em;
+    line-height: 1.05;
+    text-transform: uppercase;
+  }
+
+  .period-print { display: none; }
+
+  .period { margin-bottom: 16px; }
+  .period label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  .field-input {
+    width: 100%;
+    font-size: 1.05rem;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text);
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  input.locked {
+    background: #f0edf1;
+    color: var(--muted);
+    text-align: center;
+    font-weight: 600;
+  }
+
+  input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(140, 42, 82, 0.18);
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+
+  .card .label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .card .name { font-weight: 600; font-size: 1.1rem; }
+  .card .unit { color: var(--muted); font-size: 0.85rem; }
+  .card .del-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 1.3rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+  }
+  .card .del-btn:hover { color: var(--accent); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    align-items: end;
+  }
+  .grid.single { grid-template-columns: 1fr; }
+  .grid .field label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .line-total {
+    margin-top: 10px;
+    text-align: right;
+    font-size: 1.15rem;
+    font-weight: 600;
+  }
+  .line-total .lbl {
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-weight: 400;
+    margin-right: 6px;
+  }
+
+  .add-row { margin: 4px 0 16px; }
+
+  .add-prime-btn {
+    width: 100%;
+    background: #fff;
+    border: 1px dashed var(--accent);
+    color: var(--accent);
+    padding: 13px;
+    border-radius: 10px;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+
+  .add-form {
+    display: none;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 16px;
+    gap: 10px;
+  }
+  .add-form.show { display: block; }
+  .add-form .af-field { margin-bottom: 10px; }
+  .add-form label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .add-form .af-actions { display: flex; gap: 10px; }
+
+  .grand-total {
+    background: linear-gradient(135deg, var(--total-bg), var(--total-bg2));
+    color: var(--total-text);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    margin: 20px 0;
+  }
+  .grand-total .gt-label {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.85rem;
+    opacity: 0.9;
+  }
+  .grand-total .gt-value {
+    font-size: 2.4rem;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  button.btn {
+    flex: 1 1 auto;
+    min-width: 140px;
+    font-size: 1rem;
+    padding: 13px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--reset-bg);
+    color: var(--text);
+    cursor: pointer;
+  }
+  button.btn:active { transform: translateY(1px); }
+  button.btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  button.btn.primary:hover { background: var(--accent-dark); }
+
+  .note {
+    background: #fff8e1;
+    border: 1px solid #f0d98a;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.85rem;
+    color: #5c4a00;
+    margin-top: 8px;
+  }
+
+  .copied-msg {
+    color: var(--ok);
+    font-size: 0.85rem;
+    margin-left: 8px;
+    visibility: hidden;
+  }
+  .copied-msg.show { visibility: visible; }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+    margin: 24px 0 8px;
+  }
+
+  @media (max-width: 420px) {
+    .grand-total .gt-value { font-size: 2rem; }
+  }
+
+  @media print {
+    /* marge à 0 = le navigateur n'imprime plus son en-tête (titre) ni son
+       pied de page (chemin du fichier) ; on remet une marge interne. */
+    @page { margin: 0; }
+    body { background: #fff; padding: 10mm 12mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .wrap { max-width: none; }
+
+    .actions, .add-prime-btn, .add-row, .add-form, .note, .del-btn, .period, footer {
+      display: none !important;
+    }
+
+    /* En-tête conservé (cadre + slogan), un peu réduit. */
+    header { margin-bottom: 5mm; }
+    .banner-text .b-evs { font-size: 2rem; }
+    .banner-text .b-line1 { font-size: 0.9rem; }
+    .banner-text .b-line2 { font-size: 1.2rem; }
+
+    /* Période affichée dans le PDF. */
+    .period-print {
+      display: block;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 4mm;
+    }
+
+    /* Blocs compacts : une ligne par prime, place pour les ajouts. */
+    .card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 5px 12px;
+      margin-bottom: 4px;
+      border: 1px solid #d8c4cf;
+      break-inside: avoid;
+    }
+    .card:nth-child(even) { background: #f7eef2; }
+    .card .label-row { margin: 0; flex: 1 1 auto; }
+    .card .name { font-size: 0.95rem; color: var(--accent-dark); font-weight: 600; }
+    .card .grid {
+      display: flex;
+      gap: 14px;
+      margin: 0;
+      grid-template-columns: none;
+    }
+    .card .grid .field { display: flex; align-items: baseline; gap: 4px; }
+    .card .grid .field label { font-size: 0.7rem; margin: 0; color: var(--muted); }
+    .card .grid input { width: 60px; border: none; padding: 0; font-size: 0.9rem; background: transparent; }
+    .line-total { margin: 0; min-width: 92px; font-size: 0.95rem; }
+    .line-total .lbl { font-size: 0.7rem; color: var(--muted); }
+    .line-total-val { color: var(--accent-dark); }
+
+    .grand-total {
+      background: var(--accent) !important;
+      color: #fff;
+      border: none;
+      padding: 10px;
+      margin: 8px 0 0;
+    }
+    .grand-total .gt-value { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="bracket left" aria-hidden="true">
+      <span class="side"></span><span class="top"></span><span class="bot"></span>
+    </div>
+    <div class="banner-text">
+      <div class="b-evs">EVS</div>
+      <div class="b-line1">Nos primes,</div>
+      <div class="b-line2">notre priorité</div>
+    </div>
+    <div class="bracket right" aria-hidden="true">
+      <span class="side"></span><span class="top"></span><span class="bot"></span>
+    </div>
+  </header>
+
+  <div class="period">
+    <label for="period">Période</label>
+    <input type="text" id="period" placeholder="Ex. Mai 2026" autocomplete="off">
+  </div>
+
+  <div class="period-print" id="periodPrint"></div>
+
+  <div id="primes"></div>
+
+  <div class="add-row">
+    <button type="button" class="add-prime-btn" id="addPrimeToggle">＋ Ajouter une ligne</button>
+  </div>
+
+  <div class="add-form" id="addForm">
+    <div class="af-field">
+      <input type="text" id="newName" autocomplete="off" placeholder="Nom de la ligne">
+    </div>
+    <div class="af-field">
+      <label for="newRate">Taux (€)</label>
+      <input type="text" id="newRate" inputmode="decimal" autocomplete="off" placeholder="0,00">
+    </div>
+    <div class="af-actions">
+      <button type="button" class="btn" id="addCancel">Annuler</button>
+      <button type="button" class="btn primary" id="addConfirm">Ajouter</button>
+    </div>
+  </div>
+
+  <div class="grand-total">
+    <div class="gt-label">Total</div>
+    <div class="gt-value" id="grandTotal">0,00 €</div>
+  </div>
+
+  <div class="actions">
+    <button type="button" class="btn" id="resetAll">Réinitialiser</button>
+    <button type="button" class="btn primary" id="pdfBtn">Exporter en PDF</button>
+  </div>
+
+  <footer>
+    IPSO-UPTX-SUD — Juin 2026
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "calcul-evs-v1";
+
+  // Primes par défaut (taux unitaires). id stable pour la persistance.
+  var DEFAULT_PRIMES = [
+    { id: "traitement",     name: "Traitement",        rate: 0,    fixedQty: true },
+    { id: "indemnite-local", name: "Indemnité Local",   rate: 435 },
+    { id: "repas",          name: "Repas",             rate: 20.50 },
+    { id: "conduite",       name: "Conduite (taux A)", rate: 4.86 },
+    { id: "txidf",          name: "Tx IDF",            rate: 13.82 },
+    { id: "tunnel",         name: "Tunnel",            rate: 0.99 },
+    { id: "deplacements",   name: "Déplacements",      rate: 82.00 },
+    { id: "weekends",       name: "Week-ends",         rate: 110.00 }
+  ];
+
+  var euro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+
+  // Convertit une saisie texte (virgule ou point) en nombre >= 0, ou 0 si vide/invalide.
+  function parseNum(str) {
+    if (str === null || str === undefined) return 0;
+    str = String(str).trim().replace(/\s/g, "").replace(",", ".");
+    if (str === "") return 0;
+    var n = parseFloat(str);
+    if (isNaN(n) || n < 0) return 0;
+    return n;
+  }
+
+  // Affiche un nombre dans un champ (virgule française, sans symbole).
+  function numToInput(n) {
+    return String(n).replace(".", ",");
+  }
+
+  var state = { period: "", primes: [] };
+
+  function makeDefault(d) {
+    return {
+      id: d.id,
+      name: d.name,
+      rate: d.rate,
+      qty: d.fixedQty ? 1 : 0,
+      fixedQty: !!d.fixedQty,
+      custom: false
+    };
+  }
+
+  function loadState() {
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY)); }
+    catch (e) { saved = null; }
+
+    var savedById = {};
+    if (saved && Array.isArray(saved.primes)) {
+      saved.primes.forEach(function (p) { if (p && p.id) savedById[p.id] = p; });
+      state.period = saved.period || "";
+    }
+
+    // On reconstruit dans l'ordre des primes par défaut (garantit l'affichage
+    // de toute nouvelle prime, ex. « Traitement », même si des taux sont déjà
+    // enregistrés), puis on ajoute les primes personnalisées sauvegardées.
+    state.primes = DEFAULT_PRIMES.map(function (d) {
+      var base = makeDefault(d);
+      var s = savedById[d.id];
+      if (s) {
+        if (typeof s.rate === "number") base.rate = s.rate;
+        else if (s.rate !== undefined) base.rate = parseNum(s.rate);
+        if (!base.fixedQty) {
+          if (typeof s.qty === "number") base.qty = s.qty;
+          else if (s.qty !== undefined) base.qty = parseNum(s.qty);
+        }
+      }
+      return base;
+    });
+
+    if (saved && Array.isArray(saved.primes)) {
+      saved.primes.forEach(function (p) {
+        if (p && p.custom) {
+          state.primes.push({
+            id: p.id,
+            name: p.name,
+            rate: typeof p.rate === "number" ? p.rate : parseNum(p.rate),
+            qty: typeof p.qty === "number" ? p.qty : parseNum(p.qty),
+            fixedQty: false,
+            custom: true
+          });
+        }
+      });
+    }
+  }
+
+  function saveState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch (e) { /* stockage indisponible : on continue sans persistance */ }
+  }
+
+  var primesEl = document.getElementById("primes");
+  var grandTotalEl = document.getElementById("grandTotal");
+  var periodEl = document.getElementById("period");
+
+  function lineTotal(p) { return p.rate * p.qty; }
+
+  function render() {
+    primesEl.innerHTML = "";
+    state.primes.forEach(function (p, index) {
+      var card = document.createElement("div");
+      card.className = "card";
+
+      var labelRow = document.createElement("div");
+      labelRow.className = "label-row";
+
+      var nameWrap = document.createElement("div");
+      var name = document.createElement("span");
+      name.className = "name";
+      name.textContent = p.name;
+      nameWrap.appendChild(name);
+      labelRow.appendChild(nameWrap);
+
+      if (p.custom) {
+        var del = document.createElement("button");
+        del.type = "button";
+        del.className = "del-btn";
+        del.setAttribute("aria-label", "Supprimer la prime " + p.name);
+        del.textContent = "✕";
+        del.addEventListener("click", function () {
+          state.primes.splice(index, 1);
+          saveState();
+          render();
+        });
+        labelRow.appendChild(del);
+      }
+      card.appendChild(labelRow);
+
+      var grid = document.createElement("div");
+      grid.className = "grid";
+
+      // Champ taux
+      var rateField = document.createElement("div");
+      rateField.className = "field";
+      var rateLabel = document.createElement("label");
+      rateLabel.textContent = "Taux (€)";
+      var rateInput = document.createElement("input");
+      rateInput.type = "text";
+      rateInput.inputMode = "decimal";
+      rateInput.className = "field-input";
+      rateInput.value = p.rate ? numToInput(p.rate) : "";
+      rateInput.placeholder = "0";
+      rateInput.addEventListener("input", function () {
+        p.rate = parseNum(rateInput.value);
+        updateTotals();
+        saveState();
+      });
+      var rid = "rate-" + p.id;
+      rateLabel.setAttribute("for", rid);
+      rateInput.id = rid;
+      rateField.appendChild(rateLabel);
+      rateField.appendChild(rateInput);
+
+      grid.appendChild(rateField);
+
+      // Champ quantité — masqué pour les primes à quantité fixe (ex. Traitement).
+      if (!p.fixedQty) {
+        var qtyField = document.createElement("div");
+        qtyField.className = "field";
+        var qtyLabel = document.createElement("label");
+        qtyLabel.textContent = "Quantité";
+        var qtyInput = document.createElement("input");
+        qtyInput.type = "text";
+        qtyInput.inputMode = "decimal";
+        qtyInput.className = "field-input";
+        qtyInput.value = p.qty ? numToInput(p.qty) : "";
+        qtyInput.placeholder = "0";
+        qtyInput.addEventListener("input", function () {
+          p.qty = parseNum(qtyInput.value);
+          updateTotals();
+          saveState();
+        });
+        var qid = "qty-" + p.id;
+        qtyLabel.setAttribute("for", qid);
+        qtyInput.id = qid;
+        qtyField.appendChild(qtyLabel);
+        qtyField.appendChild(qtyInput);
+        grid.appendChild(qtyField);
+      } else {
+        grid.classList.add("single");
+      }
+
+      card.appendChild(grid);
+
+      var total = document.createElement("div");
+      total.className = "line-total";
+      var lbl = document.createElement("span");
+      lbl.className = "lbl";
+      lbl.textContent = "Total";
+      var totalVal = document.createElement("span");
+      totalVal.className = "line-total-val";
+      totalVal.setAttribute("data-id", p.id);
+      totalVal.textContent = euro.format(lineTotal(p));
+      total.appendChild(lbl);
+      total.appendChild(totalVal);
+      card.appendChild(total);
+
+      primesEl.appendChild(card);
+    });
+
+    updateTotals();
+  }
+
+  function updateTotals() {
+    var grand = 0;
+    state.primes.forEach(function (p) { grand += lineTotal(p); });
+    var vals = primesEl.querySelectorAll(".line-total-val");
+    for (var i = 0; i < vals.length; i++) {
+      var id = vals[i].getAttribute("data-id");
+      var p = findPrime(id);
+      if (p) vals[i].textContent = euro.format(lineTotal(p));
+    }
+    grandTotalEl.textContent = euro.format(grand);
+  }
+
+  function findPrime(id) {
+    for (var i = 0; i < state.primes.length; i++) {
+      if (state.primes[i].id === id) return state.primes[i];
+    }
+    return null;
+  }
+
+  // --- Actions ---
+
+  var periodPrintEl = document.getElementById("periodPrint");
+  function updatePeriodPrint() {
+    var v = (state.period || "").trim();
+    periodPrintEl.textContent = v ? "Période : " + v : "";
+  }
+
+  periodEl.addEventListener("input", function () {
+    state.period = periodEl.value;
+    updatePeriodPrint();
+    saveState();
+  });
+
+  // Réinitialise toutes les valeurs (taux ET quantités) aux valeurs par défaut.
+  document.getElementById("resetAll").addEventListener("click", function () {
+    state.primes.forEach(function (p) {
+      var def = null;
+      for (var i = 0; i < DEFAULT_PRIMES.length; i++) {
+        if (DEFAULT_PRIMES[i].id === p.id) { def = DEFAULT_PRIMES[i]; break; }
+      }
+      if (def) {
+        p.rate = def.rate;
+        p.qty = def.fixedQty ? 1 : 0;
+      } else {
+        // Prime personnalisée : on remet la quantité à zéro.
+        p.qty = 0;
+      }
+    });
+    state.period = "";
+    periodEl.value = "";
+    saveState();
+    render();
+  });
+
+  // Ajout d'une prime via formulaire intégré (pas de prompt(), bloqué sur mobile).
+  var addForm = document.getElementById("addForm");
+  var newName = document.getElementById("newName");
+  var newRate = document.getElementById("newRate");
+
+  document.getElementById("addPrimeToggle").addEventListener("click", function () {
+    addForm.classList.toggle("show");
+    if (addForm.classList.contains("show")) newName.focus();
+  });
+
+  document.getElementById("addCancel").addEventListener("click", function () {
+    addForm.classList.remove("show");
+    newName.value = ""; newRate.value = "";
+  });
+
+  document.getElementById("addConfirm").addEventListener("click", function () {
+    var label = newName.value.trim();
+    if (label === "") { newName.focus(); return; }
+    state.primes.push({
+      id: "custom-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
+      name: label,
+      unit: "",
+      rate: parseNum(newRate.value),
+      qty: 0,
+      custom: true
+    });
+    newName.value = ""; newRate.value = "";
+    addForm.classList.remove("show");
+    saveState();
+    render();
+  });
+
+  document.getElementById("pdfBtn").addEventListener("click", function () {
+    window.print();
+  });
+
+  // --- Init ---
+  loadState();
+  periodEl.value = state.period;
+  updatePeriodPrint();
+  render();
+})();
+</script>
+</body>
+</html>
