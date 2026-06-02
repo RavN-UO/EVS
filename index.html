@@ -4,6 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EVS — Nos primes, notre priorité</title>
+
+<!-- Icône / ajout à l'écran d'accueil (nom : EVS). Les fichiers d'icônes et le
+     manifest doivent être enregistrés dans le même dossier que index.html. -->
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#8c2a52">
+<meta name="apple-mobile-web-app-title" content="EVS">
+<meta name="application-name" content="EVS">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+
 <style>
   /* ============================================================
      Variables
@@ -85,31 +98,22 @@
 
   .banner-text {
     text-align: center;
-    padding: 14px 22px;
+    padding: 20px 24px;
     display: flex;
     flex-direction: column;
     justify-content: center;
   }
-  .banner-text .b-evs {
-    font-size: 3.1rem;
-    line-height: 1;
-    font-weight: 800;
-    color: var(--accent);
-    letter-spacing: 0.14em;
-    text-indent: 0.14em; /* recentre optiquement le texte espacé */
-    margin-bottom: 9px;
-  }
   .banner-text .b-line1 {
-    font-size: 0.95rem;
+    font-size: 1.15rem;
     font-weight: 600;
     color: var(--accent);
     letter-spacing: 0.22em;
     text-indent: 0.22em;
-    line-height: 1.15;
+    line-height: 1.2;
     text-transform: uppercase;
   }
   .banner-text .b-line2 {
-    font-size: 1.5rem;
+    font-size: 1.95rem;
     font-weight: 800;
     color: var(--text);
     letter-spacing: 0.05em;
@@ -251,7 +255,7 @@
   }
 
   /* ============================================================
-     Ajout d'une ligne / d'une plage
+     Ajout d'une ligne
      ============================================================ */
   .add-row { margin: 4px 0 16px; }
   .add-btn {
@@ -402,6 +406,19 @@
     text-align: center;
   }
 
+  /* Case RP (journée non travaillée) */
+  .rp-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--rest);
+    cursor: pointer;
+  }
+  .rp-toggle input { width: 16px; height: 16px; accent-color: var(--rest); }
+  .day-card.rp { background: var(--rest-bg); border-color: var(--rest); }
+
   /* Compteur de temps de repos entre deux jours (couleur distincte) */
   .rest-row {
     display: flex;
@@ -454,9 +471,8 @@
 
     /* En-tête conservé (cadre + slogan), un peu réduit. */
     header { margin-bottom: 5mm; }
-    .banner-text .b-evs { font-size: 2rem; }
     .banner-text .b-line1 { font-size: 0.9rem; }
-    .banner-text .b-line2 { font-size: 1.2rem; }
+    .banner-text .b-line2 { font-size: 1.3rem; }
 
     /* Période affichée dans le PDF. */
     .period-print {
@@ -509,7 +525,6 @@
   <header>
     <div class="bracket left" aria-hidden="true"></div>
     <div class="banner-text">
-      <div class="b-evs">EVS</div>
       <div class="b-line1">Nos primes,</div>
       <div class="b-line2">notre priorité</div>
     </div>
@@ -945,7 +960,7 @@
     return h * 60 + m;
   }
 
-  // Amplitude d'une plage : fin - début, +24h si la fin passe minuit.
+  // Durée entre deux heures : fin - début, +24h si la fin passe minuit.
   function span(startMin, endMin) {
     if (startMin === null || endMin === null) return null;
     var d = endMin - startMin;
@@ -966,8 +981,9 @@
   var state;
 
   function newDay() {
-    // s/e = service ; aS = départ trajet aller ; rE = retour trajet retour.
-    return { s: "", e: "", aS: "", rE: "" };
+    // s/e = service ; aS = départ trajet aller ; rE = retour trajet retour ;
+    // rp = journée non travaillée (repos), cumulée au temps de repos.
+    return { s: "", e: "", aS: "", rE: "", rp: false };
   }
 
   function defaultState() {
@@ -985,7 +1001,8 @@
           days: s.days.map(function (d) {
             return {
               s: d.s || "", e: d.e || "",
-              aS: d.aS || "", rE: d.rE || ""
+              aS: d.aS || "", rE: d.rE || "",
+              rp: !!d.rp
             };
           })
         };
@@ -1046,12 +1063,33 @@
     return r !== null ? r : toMinutes(day.e);
   }
 
-  // Temps de repos entre la fin d'un jour et la prise de service du lendemain.
-  function restMinutes(prev, next) {
-    var end = dayEnd(prev);
-    var start = dayStart(next);
-    if (end === null || start === null) return null;
-    return start + DAY - end; // jours consécutifs : on passe la nuit
+  // Minutes absolues (le jour i démarre à i*DAY) du début/fin d'un jour travaillé.
+  function startAbs(i) {
+    var s = dayStart(state.days[i]);
+    return s === null ? null : i * DAY + s;
+  }
+  function endAbs(i) {
+    var e = dayEnd(state.days[i]);
+    return e === null ? null : i * DAY + e;
+  }
+
+  // Dernier jour travaillé strictement avant l'index i (null si aucun).
+  function prevWorked(i) {
+    for (var k = i - 1; k >= 0; k--) {
+      if (!state.days[k].rp) return k;
+    }
+    return null;
+  }
+
+  // Temps de repos avant le jour travaillé i : depuis la fin du dernier
+  // service jusqu'à la prise de service de ce jour, en englobant les jours RP.
+  function restBefore(i) {
+    var p = prevWorked(i);
+    if (p === null) return null;
+    var a = endAbs(p);
+    var b = startAbs(i);
+    if (a === null || b === null) return null;
+    return b - a;
   }
 
   // ---- Rendu --------------------------------------------------------------
@@ -1078,11 +1116,10 @@
   }
 
   // Une ligne « libellé | Début | Fin ».
-  // Cellule « valeur implicite » (= heure de service), pour la colonne vide.
+  // Cellule vide (la colonne reste alignée, sans texte).
   function impliedCell() {
     var s = document.createElement("span");
     s.className = "seg-implied";
-    s.textContent = "= service";
     return s;
   }
 
@@ -1101,9 +1138,9 @@
 
   function buildDay(day, i) {
     var card = document.createElement("div");
-    card.className = "card day-card";
+    card.className = "card day-card" + (day.rp ? " rp" : "");
 
-    // En-tête : libellé du jour + amplitude + suppression.
+    // En-tête : libellé du jour + case RP + amplitude + suppression.
     var head = document.createElement("div");
     head.className = "label-row";
     var name = document.createElement("span");
@@ -1113,11 +1150,29 @@
 
     var right = document.createElement("div");
     right.className = "day-head-right";
-    var amp = document.createElement("span");
-    amp.className = "day-amp";
-    amp.id = "dayAmp-" + i;
-    amp.textContent = dayAmpText(day);
-    right.appendChild(amp);
+
+    // Case « RP » (journée non travaillée).
+    var rpLbl = document.createElement("label");
+    rpLbl.className = "rp-toggle";
+    var rpCb = document.createElement("input");
+    rpCb.type = "checkbox";
+    rpCb.checked = day.rp;
+    rpCb.addEventListener("change", function () {
+      day.rp = rpCb.checked;
+      saveState();
+      renderDays();
+    });
+    rpLbl.appendChild(rpCb);
+    rpLbl.appendChild(document.createTextNode(" RP"));
+    right.appendChild(rpLbl);
+
+    if (!day.rp) {
+      var amp = document.createElement("span");
+      amp.className = "day-amp";
+      amp.id = "dayAmp-" + i;
+      amp.textContent = dayAmpText(day);
+      right.appendChild(amp);
+    }
 
     if (state.days.length > 1) {
       var del = document.createElement("button");
@@ -1134,6 +1189,9 @@
     }
     head.appendChild(right);
     card.appendChild(head);
+
+    // Journée non travaillée (RP) : aucune saisie, elle compte en repos.
+    if (day.rp) return card;
 
     // En-têtes de colonnes : (vide) | Début | Fin.
     var colHead = document.createElement("div");
@@ -1177,7 +1235,9 @@
     daysEl.innerHTML = "";
     state.days.forEach(function (day, i) {
       daysEl.appendChild(buildDay(day, i));
-      if (i < state.days.length - 1) daysEl.appendChild(buildRest(i));
+      // Compteur de repos affiché juste avant un jour travaillé (englobe les RP).
+      var next = state.days[i + 1];
+      if (next && !next.rp) daysEl.appendChild(buildRest(i));
     });
     compute();
   }
@@ -1189,10 +1249,7 @@
       if (el) el.textContent = dayAmpText(day);
 
       var rest = document.getElementById("rest-" + i);
-      if (rest) {
-        var r = restMinutes(day, state.days[i + 1]);
-        rest.textContent = fmtDuration(r);
-      }
+      if (rest) rest.textContent = fmtDuration(restBefore(i + 1));
     });
   }
 
