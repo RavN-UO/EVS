@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EVS — Nos primes, notre priorité</title>
 <style>
+  /* ============================================================
+     Variables
+     ============================================================ */
   :root {
     --bg: #f4f6f8;
     --card: #ffffff;
@@ -15,14 +18,16 @@
     --accent-dark: #6d2040;
     --total-bg: #5a2147;
     --total-bg2: #8c2a52;
-    --total-text: #ffffff;
     --reset-bg: #f0edf1;
     --stripe-dark: #2b2b30;
-    --ok: #1a7f37;
+    --rest: #1f6f7a;       /* compteur de repos (teal, distinct du bordeaux) */
+    --rest-bg: #e8f3f4;
   }
 
+  /* ============================================================
+     Base
+     ============================================================ */
   * { box-sizing: border-box; }
-
   html, body { margin: 0; padding: 0; }
 
   body {
@@ -35,40 +40,48 @@
 
   .wrap { max-width: 720px; margin: 0 auto; }
 
+  /* ============================================================
+     En-tête : cadre rayé + slogan
+     ============================================================ */
   header {
-    margin-bottom: 22px;
+    margin-bottom: 18px;
     display: flex;
     align-items: stretch;
     justify-content: center;
     gap: 4px;
   }
 
-  /* Angles de cadre à rayures (côtés gauche/droit + amorces horizontales) */
+  /* Angle de cadre = un seul fond rayé (donc parfaitement aligné) découpé
+     en forme de cadre via un masque : barre verticale + amorces haut/bas.
+     La marge négative rapproche la barre du texte tout en gardant des
+     amorces horizontales longues. */
   .bracket {
-    position: relative;
-    width: 22px;
-    flex: 0 0 22px;
-  }
-  .bracket span {
-    position: absolute;
+    flex: 0 0 30px;
+    width: 30px;
     background: repeating-linear-gradient(
       -45deg,
       var(--accent) 0 12px,
       var(--stripe-dark) 12px 24px
     );
-    border-radius: 1px;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    -webkit-mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000), linear-gradient(#000, #000);
+            mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000), linear-gradient(#000, #000);
+    -webkit-mask-repeat: no-repeat;
+            mask-repeat: no-repeat;
+    -webkit-mask-size: 20px 100%, 30px 16px, 30px 16px;
+            mask-size: 20px 100%, 30px 16px, 30px 16px;
   }
-  .bracket .side { top: 0; bottom: 0; width: 18px; }
-  .bracket .top  { top: 0; height: 14px; width: 32px; }
-  .bracket .bot  { bottom: 0; height: 14px; width: 32px; }
-  .bracket.left .side,
-  .bracket.left .top,
-  .bracket.left .bot { left: 0; }
-  .bracket.right .side,
-  .bracket.right .top,
-  .bracket.right .bot { right: 0; }
+  .bracket.left {
+    margin-right: -7px;
+    -webkit-mask-position: left center, left top, left bottom;
+            mask-position: left center, left top, left bottom;
+  }
+  .bracket.right {
+    margin-left: -7px;
+    -webkit-mask-position: right center, right top, right bottom;
+            mask-position: right center, right top, right bottom;
+  }
 
   .banner-text {
     text-align: center;
@@ -83,16 +96,16 @@
     font-weight: 800;
     color: var(--accent);
     letter-spacing: 0.14em;
-    text-indent: 0.14em;
+    text-indent: 0.14em; /* recentre optiquement le texte espacé */
     margin-bottom: 9px;
   }
   .banner-text .b-line1 {
     font-size: 0.95rem;
+    font-weight: 600;
     color: var(--accent);
     letter-spacing: 0.22em;
     text-indent: 0.22em;
     line-height: 1.15;
-    font-weight: 600;
     text-transform: uppercase;
   }
   .banner-text .b-line2 {
@@ -105,8 +118,33 @@
     text-transform: uppercase;
   }
 
-  .period-print { display: none; }
+  /* ============================================================
+     Onglets
+     ============================================================ */
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 18px;
+    border-bottom: 2px solid var(--border);
+  }
+  .tab-btn {
+    flex: 1 1 auto;
+    background: none;
+    border: none;
+    padding: 12px 10px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-panel[hidden] { display: none; }
 
+  /* ============================================================
+     Période (onglet EVS)
+     ============================================================ */
   .period { margin-bottom: 16px; }
   .period label {
     display: block;
@@ -114,9 +152,13 @@
     color: var(--muted);
     margin-bottom: 4px;
   }
+  .period-print { display: none; } /* visible uniquement à l'impression */
 
+  /* ============================================================
+     Champs de saisie
+     ============================================================ */
   input[type="text"],
-  input[type="number"],
+  input[type="date"],
   .field-input {
     width: 100%;
     font-size: 1.05rem;
@@ -128,20 +170,33 @@
     -webkit-appearance: none;
     appearance: none;
   }
-
-  input.locked {
-    background: #f0edf1;
-    color: var(--muted);
-    text-align: center;
-    font-weight: 600;
-  }
-
   input:focus {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(140, 42, 82, 0.18);
   }
 
+  /* Sélecteur de date un peu plus soigné */
+  input[type="date"] {
+    accent-color: var(--accent);
+    font-weight: 600;
+    color: var(--accent-dark);
+    background: linear-gradient(0deg, #fbf6f8, #ffffff);
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    opacity: 0.85;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    background: var(--reset-bg);
+    opacity: 1;
+  }
+
+  /* ============================================================
+     Cartes (primes EVS + sections Déplacement)
+     ============================================================ */
   .card {
     background: var(--card);
     border: 1px solid var(--border);
@@ -149,7 +204,6 @@
     padding: 14px;
     margin-bottom: 12px;
   }
-
   .card .label-row {
     display: flex;
     justify-content: space-between;
@@ -158,8 +212,7 @@
     margin-bottom: 10px;
   }
   .card .name { font-weight: 600; font-size: 1.1rem; }
-  .card .unit { color: var(--muted); font-size: 0.85rem; }
-  .card .del-btn {
+  .del-btn {
     background: none;
     border: none;
     color: var(--muted);
@@ -168,7 +221,7 @@
     cursor: pointer;
     padding: 0 4px;
   }
-  .card .del-btn:hover { color: var(--accent); }
+  .del-btn:hover { color: var(--accent); }
 
   .grid {
     display: grid;
@@ -197,9 +250,11 @@
     margin-right: 6px;
   }
 
+  /* ============================================================
+     Ajout d'une ligne / d'une plage
+     ============================================================ */
   .add-row { margin: 4px 0 16px; }
-
-  .add-prime-btn {
+  .add-btn {
     width: 100%;
     background: #fff;
     border: 1px dashed var(--accent);
@@ -209,7 +264,6 @@
     font-size: 1rem;
     cursor: pointer;
   }
-
   .add-form {
     display: none;
     background: #fff;
@@ -217,7 +271,6 @@
     border-radius: 14px;
     padding: 14px;
     margin-bottom: 16px;
-    gap: 10px;
   }
   .add-form.show { display: block; }
   .add-form .af-field { margin-bottom: 10px; }
@@ -229,9 +282,12 @@
   }
   .add-form .af-actions { display: flex; gap: 10px; }
 
+  /* ============================================================
+     Total général (EVS)
+     ============================================================ */
   .grand-total {
     background: linear-gradient(135deg, var(--total-bg), var(--total-bg2));
-    color: var(--total-text);
+    color: #fff;
     border-radius: 16px;
     padding: 20px;
     text-align: center;
@@ -249,6 +305,9 @@
     margin-top: 4px;
   }
 
+  /* ============================================================
+     Boutons d'action
+     ============================================================ */
   .actions {
     display: flex;
     flex-wrap: wrap;
@@ -274,23 +333,90 @@
   }
   button.btn.primary:hover { background: var(--accent-dark); }
 
-  .note {
-    background: #fff8e1;
-    border: 1px solid #f0d98a;
-    border-radius: 10px;
-    padding: 12px 14px;
-    font-size: 0.85rem;
-    color: #5c4a00;
-    margin-top: 8px;
+  /* ============================================================
+     Onglet Simulateur de déplacement (lignes compactes)
+     ============================================================ */
+  .date-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .date-bar label { font-size: 0.95rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
+  .date-bar input[type="date"] { flex: 1 1 auto; padding: 9px 12px; }
+
+  .day-card { padding: 8px 10px; margin-bottom: 8px; }
+  .day-card .label-row {
+    margin-bottom: 6px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border);
+  }
+  .day-card .name { font-size: 0.95rem; color: var(--accent-dark); }
+
+  .day-head-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .day-amp {
+    font-weight: 700;
+    color: #fff;
+    background: var(--accent);
+    font-size: 0.95rem;
+    padding: 2px 10px;
+    border-radius: 999px;
   }
 
-  .copied-msg {
-    color: var(--ok);
-    font-size: 0.85rem;
-    margin-left: 8px;
-    visibility: hidden;
+  .seg-head,
+  .seg-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr;
+    gap: 6px;
+    align-items: center;
   }
-  .copied-msg.show { visibility: visible; }
+  .seg-head { margin-bottom: 3px; }
+  .seg-head span {
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-align: center;
+  }
+  .seg-row { margin-bottom: 4px; padding: 2px 5px; border-radius: 7px; }
+  .seg-row:last-child { margin-bottom: 0; }
+  .seg-row .seg-label { font-size: 0.8rem; font-weight: 600; }
+  .seg-row.aller .seg-label,
+  .seg-row.retour .seg-label { color: var(--muted); }
+  .seg-row.service { background: #f3e6ec; }
+  .seg-row.service .seg-label { color: var(--accent-dark); }
+
+  /* Cases horaires resserrées */
+  .time-cell {
+    padding: 7px 5px;
+    font-size: 0.98rem;
+    text-align: center;
+  }
+  /* Colonne implicite (= heure de service) */
+  .seg-implied {
+    font-size: 0.72rem;
+    font-style: italic;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* Compteur de temps de repos entre deux jours (couleur distincte) */
+  .rest-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 0 0 8px;
+    padding: 5px 12px;
+    background: var(--rest-bg);
+    border: 1px dashed var(--rest);
+    border-radius: 999px;
+    font-size: 0.85rem;
+  }
+  .rest-row .rest-label { color: var(--rest); font-weight: 600; }
+  .rest-row .rest-value { color: var(--rest); font-weight: 700; }
 
   footer {
     text-align: center;
@@ -299,18 +425,30 @@
     margin: 24px 0 8px;
   }
 
+  /* ============================================================
+     Responsive
+     ============================================================ */
   @media (max-width: 420px) {
     .grand-total .gt-value { font-size: 2rem; }
   }
 
+  /* ============================================================
+     Impression / export PDF de l'onglet EVS (compact, une page)
+     ============================================================ */
   @media print {
     /* marge à 0 = le navigateur n'imprime plus son en-tête (titre) ni son
        pied de page (chemin du fichier) ; on remet une marge interne. */
     @page { margin: 0; }
-    body { background: #fff; padding: 10mm 12mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body {
+      background: #fff;
+      padding: 10mm 12mm;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
     .wrap { max-width: none; }
 
-    .actions, .add-prime-btn, .add-row, .add-form, .note, .del-btn, .period, footer {
+    .tabs, #tab-deplacement,
+    .actions, .add-btn, .add-row, .add-form, .del-btn, .period, footer {
       display: none !important;
     }
 
@@ -329,7 +467,7 @@
       margin-bottom: 4mm;
     }
 
-    /* Blocs compacts : une ligne par prime, place pour les ajouts. */
+    /* Une ligne par prime, compact, avec de la place pour les ajouts. */
     .card {
       display: flex;
       align-items: center;
@@ -341,7 +479,7 @@
     }
     .card:nth-child(even) { background: #f7eef2; }
     .card .label-row { margin: 0; flex: 1 1 auto; }
-    .card .name { font-size: 0.95rem; color: var(--accent-dark); font-weight: 600; }
+    .card .name { font-size: 0.95rem; color: var(--accent-dark); }
     .card .grid {
       display: flex;
       gap: 14px;
@@ -369,95 +507,144 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="bracket left" aria-hidden="true">
-      <span class="side"></span><span class="top"></span><span class="bot"></span>
-    </div>
+    <div class="bracket left" aria-hidden="true"></div>
     <div class="banner-text">
       <div class="b-evs">EVS</div>
       <div class="b-line1">Nos primes,</div>
       <div class="b-line2">notre priorité</div>
     </div>
-    <div class="bracket right" aria-hidden="true">
-      <span class="side"></span><span class="top"></span><span class="bot"></span>
-    </div>
+    <div class="bracket right" aria-hidden="true"></div>
   </header>
 
-  <div class="period">
-    <label for="period">Période</label>
-    <input type="text" id="period" placeholder="Ex. Mai 2026" autocomplete="off">
-  </div>
+  <nav class="tabs">
+    <button type="button" class="tab-btn active" data-tab="evs">EVS</button>
+    <button type="button" class="tab-btn" data-tab="deplacement">Simulateur de déplacement</button>
+  </nav>
 
-  <div class="period-print" id="periodPrint"></div>
-
-  <div id="primes"></div>
-
-  <div class="add-row">
-    <button type="button" class="add-prime-btn" id="addPrimeToggle">＋ Ajouter une ligne</button>
-  </div>
-
-  <div class="add-form" id="addForm">
-    <div class="af-field">
-      <input type="text" id="newName" autocomplete="off" placeholder="Nom de la ligne">
+  <!-- ============================ Onglet EVS ============================ -->
+  <section id="tab-evs" class="tab-panel">
+    <div class="period">
+      <label for="period">Période</label>
+      <input type="text" id="period" placeholder="Ex. Mai 2026" autocomplete="off">
     </div>
-    <div class="af-field">
-      <label for="newRate">Taux (€)</label>
-      <input type="text" id="newRate" inputmode="decimal" autocomplete="off" placeholder="0,00">
+    <div class="period-print" id="periodPrint"></div>
+
+    <div id="primes"></div>
+
+    <div class="add-row">
+      <button type="button" class="add-btn" id="addPrimeToggle">＋ Ajouter une ligne</button>
     </div>
-    <div class="af-actions">
-      <button type="button" class="btn" id="addCancel">Annuler</button>
-      <button type="button" class="btn primary" id="addConfirm">Ajouter</button>
+
+    <div class="add-form" id="addForm">
+      <div class="af-field">
+        <input type="text" id="newName" autocomplete="off" placeholder="Nom de la ligne">
+      </div>
+      <div class="af-field">
+        <label for="newRate">Taux (€)</label>
+        <input type="text" id="newRate" inputmode="decimal" autocomplete="off" placeholder="0,00">
+      </div>
+      <div class="af-actions">
+        <button type="button" class="btn" id="addCancel">Annuler</button>
+        <button type="button" class="btn primary" id="addConfirm">Ajouter</button>
+      </div>
     </div>
-  </div>
 
-  <div class="grand-total">
-    <div class="gt-label">Total</div>
-    <div class="gt-value" id="grandTotal">0,00 €</div>
-  </div>
+    <div class="grand-total">
+      <div class="gt-label">Total</div>
+      <div class="gt-value" id="grandTotal">0,00 €</div>
+    </div>
 
-  <div class="actions">
-    <button type="button" class="btn" id="resetAll">Réinitialiser</button>
-    <button type="button" class="btn primary" id="pdfBtn">Exporter en PDF</button>
-  </div>
+    <div class="actions">
+      <button type="button" class="btn" id="resetAll">Réinitialiser</button>
+      <button type="button" class="btn primary" id="pdfBtn">Exporter en PDF</button>
+    </div>
+  </section>
 
-  <footer>
-    IPSO-UPTX-SUD — Juin 2026
-  </footer>
+  <!-- ================== Onglet Simulateur de déplacement ================== -->
+  <section id="tab-deplacement" class="tab-panel" hidden>
+    <div class="date-bar">
+      <label for="firstDate">📅 Date</label>
+      <input type="date" id="firstDate">
+    </div>
+
+    <div id="days"></div>
+
+    <div class="add-row">
+      <button type="button" class="add-btn" id="addDay">＋ Ajouter un jour</button>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn" id="resetDep">Réinitialiser</button>
+    </div>
+  </section>
+
+  <footer>IPSO-UPTX-SUD — Juin 2026</footer>
 </div>
 
 <script>
+/* =====================================================================
+   Navigation par onglets
+   ===================================================================== */
+(function () {
+  "use strict";
+  var buttons = document.querySelectorAll(".tab-btn");
+  var panels = {
+    evs: document.getElementById("tab-evs"),
+    deplacement: document.getElementById("tab-deplacement")
+  };
+
+  function activate(name) {
+    buttons.forEach(function (b) { b.classList.toggle("active", b.getAttribute("data-tab") === name); });
+    Object.keys(panels).forEach(function (k) { panels[k].hidden = (k !== name); });
+  }
+
+  buttons.forEach(function (b) {
+    b.addEventListener("click", function () { activate(b.getAttribute("data-tab")); });
+  });
+
+  activate("evs"); // EVS par défaut
+})();
+
+/* =====================================================================
+   Onglet EVS — calculateur de primes
+   ===================================================================== */
 (function () {
   "use strict";
 
   var STORAGE_KEY = "calcul-evs-v1";
 
-  // Primes par défaut (taux unitaires). id stable pour la persistance.
+  // Primes par défaut. `id` stable pour la persistance ; `fixedQty` = quantité
+  // bloquée à 1 et masquée (cas du Traitement).
   var DEFAULT_PRIMES = [
-    { id: "traitement",     name: "Traitement",        rate: 0,    fixedQty: true },
+    { id: "traitement",      name: "Traitement",        rate: 0,    fixedQty: true },
     { id: "indemnite-local", name: "Indemnité Local",   rate: 435 },
-    { id: "repas",          name: "Repas",             rate: 20.50 },
-    { id: "conduite",       name: "Conduite (taux A)", rate: 4.86 },
-    { id: "txidf",          name: "Tx IDF",            rate: 13.82 },
-    { id: "tunnel",         name: "Tunnel",            rate: 0.99 },
-    { id: "deplacements",   name: "Déplacements",      rate: 82.00 },
-    { id: "weekends",       name: "Week-ends",         rate: 110.00 }
+    { id: "repas",           name: "Repas",             rate: 20.50 },
+    { id: "conduite",        name: "Conduite (taux A)", rate: 4.86 },
+    { id: "txidf",           name: "Tx IDF",            rate: 13.82 },
+    { id: "tunnel",          name: "Tunnel",            rate: 0.99 },
+    { id: "deplacements",    name: "Déplacements",      rate: 82.00 },
+    { id: "weekends",        name: "Week-ends",         rate: 110.00 }
   ];
 
   var euro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
-  // Convertit une saisie texte (virgule ou point) en nombre >= 0, ou 0 si vide/invalide.
+  // ---- Helpers de nombres -------------------------------------------------
+
+  // Saisie texte (virgule ou point) -> nombre >= 0, ou 0 si vide/invalide.
   function parseNum(str) {
     if (str === null || str === undefined) return 0;
     str = String(str).trim().replace(/\s/g, "").replace(",", ".");
     if (str === "") return 0;
     var n = parseFloat(str);
-    if (isNaN(n) || n < 0) return 0;
-    return n;
+    return (isNaN(n) || n < 0) ? 0 : n;
   }
 
-  // Affiche un nombre dans un champ (virgule française, sans symbole).
+  // Nombre -> texte de champ (virgule française, sans symbole).
   function numToInput(n) {
     return String(n).replace(".", ",");
   }
+
+  // ---- État + persistance -------------------------------------------------
 
   var state = { period: "", primes: [] };
 
@@ -483,19 +670,15 @@
       state.period = saved.period || "";
     }
 
-    // On reconstruit dans l'ordre des primes par défaut (garantit l'affichage
-    // de toute nouvelle prime, ex. « Traitement », même si des taux sont déjà
-    // enregistrés), puis on ajoute les primes personnalisées sauvegardées.
+    // Reconstruit dans l'ordre des primes par défaut (garantit l'affichage des
+    // nouvelles primes même si des taux sont déjà enregistrés), en réappliquant
+    // les valeurs sauvegardées, puis ajoute les primes personnalisées.
     state.primes = DEFAULT_PRIMES.map(function (d) {
       var base = makeDefault(d);
       var s = savedById[d.id];
       if (s) {
-        if (typeof s.rate === "number") base.rate = s.rate;
-        else if (s.rate !== undefined) base.rate = parseNum(s.rate);
-        if (!base.fixedQty) {
-          if (typeof s.qty === "number") base.qty = s.qty;
-          else if (s.qty !== undefined) base.qty = parseNum(s.qty);
-        }
+        if (s.rate !== undefined) base.rate = parseNum(s.rate);
+        if (!base.fixedQty && s.qty !== undefined) base.qty = parseNum(s.qty);
       }
       return base;
     });
@@ -506,8 +689,8 @@
           state.primes.push({
             id: p.id,
             name: p.name,
-            rate: typeof p.rate === "number" ? p.rate : parseNum(p.rate),
-            qty: typeof p.qty === "number" ? p.qty : parseNum(p.qty),
+            rate: parseNum(p.rate),
+            qty: parseNum(p.qty),
             fixedQty: false,
             custom: true
           });
@@ -521,144 +704,147 @@
     catch (e) { /* stockage indisponible : on continue sans persistance */ }
   }
 
-  var primesEl = document.getElementById("primes");
-  var grandTotalEl = document.getElementById("grandTotal");
-  var periodEl = document.getElementById("period");
-
-  function lineTotal(p) { return p.rate * p.qty; }
-
-  function render() {
-    primesEl.innerHTML = "";
-    state.primes.forEach(function (p, index) {
-      var card = document.createElement("div");
-      card.className = "card";
-
-      var labelRow = document.createElement("div");
-      labelRow.className = "label-row";
-
-      var nameWrap = document.createElement("div");
-      var name = document.createElement("span");
-      name.className = "name";
-      name.textContent = p.name;
-      nameWrap.appendChild(name);
-      labelRow.appendChild(nameWrap);
-
-      if (p.custom) {
-        var del = document.createElement("button");
-        del.type = "button";
-        del.className = "del-btn";
-        del.setAttribute("aria-label", "Supprimer la prime " + p.name);
-        del.textContent = "✕";
-        del.addEventListener("click", function () {
-          state.primes.splice(index, 1);
-          saveState();
-          render();
-        });
-        labelRow.appendChild(del);
-      }
-      card.appendChild(labelRow);
-
-      var grid = document.createElement("div");
-      grid.className = "grid";
-
-      // Champ taux
-      var rateField = document.createElement("div");
-      rateField.className = "field";
-      var rateLabel = document.createElement("label");
-      rateLabel.textContent = "Taux (€)";
-      var rateInput = document.createElement("input");
-      rateInput.type = "text";
-      rateInput.inputMode = "decimal";
-      rateInput.className = "field-input";
-      rateInput.value = p.rate ? numToInput(p.rate) : "";
-      rateInput.placeholder = "0";
-      rateInput.addEventListener("input", function () {
-        p.rate = parseNum(rateInput.value);
-        updateTotals();
-        saveState();
-      });
-      var rid = "rate-" + p.id;
-      rateLabel.setAttribute("for", rid);
-      rateInput.id = rid;
-      rateField.appendChild(rateLabel);
-      rateField.appendChild(rateInput);
-
-      grid.appendChild(rateField);
-
-      // Champ quantité — masqué pour les primes à quantité fixe (ex. Traitement).
-      if (!p.fixedQty) {
-        var qtyField = document.createElement("div");
-        qtyField.className = "field";
-        var qtyLabel = document.createElement("label");
-        qtyLabel.textContent = "Quantité";
-        var qtyInput = document.createElement("input");
-        qtyInput.type = "text";
-        qtyInput.inputMode = "decimal";
-        qtyInput.className = "field-input";
-        qtyInput.value = p.qty ? numToInput(p.qty) : "";
-        qtyInput.placeholder = "0";
-        qtyInput.addEventListener("input", function () {
-          p.qty = parseNum(qtyInput.value);
-          updateTotals();
-          saveState();
-        });
-        var qid = "qty-" + p.id;
-        qtyLabel.setAttribute("for", qid);
-        qtyInput.id = qid;
-        qtyField.appendChild(qtyLabel);
-        qtyField.appendChild(qtyInput);
-        grid.appendChild(qtyField);
-      } else {
-        grid.classList.add("single");
-      }
-
-      card.appendChild(grid);
-
-      var total = document.createElement("div");
-      total.className = "line-total";
-      var lbl = document.createElement("span");
-      lbl.className = "lbl";
-      lbl.textContent = "Total";
-      var totalVal = document.createElement("span");
-      totalVal.className = "line-total-val";
-      totalVal.setAttribute("data-id", p.id);
-      totalVal.textContent = euro.format(lineTotal(p));
-      total.appendChild(lbl);
-      total.appendChild(totalVal);
-      card.appendChild(total);
-
-      primesEl.appendChild(card);
-    });
-
-    updateTotals();
-  }
-
-  function updateTotals() {
-    var grand = 0;
-    state.primes.forEach(function (p) { grand += lineTotal(p); });
-    var vals = primesEl.querySelectorAll(".line-total-val");
-    for (var i = 0; i < vals.length; i++) {
-      var id = vals[i].getAttribute("data-id");
-      var p = findPrime(id);
-      if (p) vals[i].textContent = euro.format(lineTotal(p));
-    }
-    grandTotalEl.textContent = euro.format(grand);
-  }
-
-  function findPrime(id) {
-    for (var i = 0; i < state.primes.length; i++) {
-      if (state.primes[i].id === id) return state.primes[i];
+  function findDefault(id) {
+    for (var i = 0; i < DEFAULT_PRIMES.length; i++) {
+      if (DEFAULT_PRIMES[i].id === id) return DEFAULT_PRIMES[i];
     }
     return null;
   }
 
-  // --- Actions ---
+  // ---- Calculs ------------------------------------------------------------
 
+  function lineTotal(p) { return p.rate * p.qty; }
+
+  function grandTotal() {
+    var g = 0;
+    state.primes.forEach(function (p) { g += lineTotal(p); });
+    return g;
+  }
+
+  // ---- Rendu --------------------------------------------------------------
+
+  var primesEl = document.getElementById("primes");
+  var grandTotalEl = document.getElementById("grandTotal");
+  var periodEl = document.getElementById("period");
   var periodPrintEl = document.getElementById("periodPrint");
+
+  // Construit un champ « label + input numérique ».
+  function buildField(labelText, id, value, onInput) {
+    var field = document.createElement("div");
+    field.className = "field";
+
+    var label = document.createElement("label");
+    label.textContent = labelText;
+    label.setAttribute("for", id);
+
+    var input = document.createElement("input");
+    input.type = "text";
+    input.inputMode = "decimal";
+    input.className = "field-input";
+    input.id = id;
+    input.value = value ? numToInput(value) : "";
+    input.placeholder = "0";
+    input.addEventListener("input", function () { onInput(input.value); });
+
+    field.appendChild(label);
+    field.appendChild(input);
+    return field;
+  }
+
+  function buildCard(p, index) {
+    var card = document.createElement("div");
+    card.className = "card";
+
+    // Libellé (+ bouton supprimer pour les primes personnalisées).
+    var labelRow = document.createElement("div");
+    labelRow.className = "label-row";
+    var nameWrap = document.createElement("div");
+    var name = document.createElement("span");
+    name.className = "name";
+    name.textContent = p.name;
+    nameWrap.appendChild(name);
+    labelRow.appendChild(nameWrap);
+
+    if (p.custom) {
+      var del = document.createElement("button");
+      del.type = "button";
+      del.className = "del-btn";
+      del.setAttribute("aria-label", "Supprimer " + p.name);
+      del.textContent = "✕";
+      del.addEventListener("click", function () {
+        state.primes.splice(index, 1);
+        saveState();
+        render();
+      });
+      labelRow.appendChild(del);
+    }
+    card.appendChild(labelRow);
+
+    // Taux + quantité (quantité masquée si fixe).
+    var grid = document.createElement("div");
+    grid.className = "grid";
+
+    grid.appendChild(buildField("Taux (€)", "rate-" + p.id, p.rate, function (v) {
+      p.rate = parseNum(v);
+      refreshTotals();
+      saveState();
+    }));
+
+    if (p.fixedQty) {
+      grid.classList.add("single");
+    } else {
+      grid.appendChild(buildField("Quantité", "qty-" + p.id, p.qty, function (v) {
+        p.qty = parseNum(v);
+        refreshTotals();
+        saveState();
+      }));
+    }
+    card.appendChild(grid);
+
+    // Total de la ligne.
+    var total = document.createElement("div");
+    total.className = "line-total";
+    var lbl = document.createElement("span");
+    lbl.className = "lbl";
+    lbl.textContent = "Total";
+    var val = document.createElement("span");
+    val.className = "line-total-val";
+    val.setAttribute("data-id", p.id);
+    val.textContent = euro.format(lineTotal(p));
+    total.appendChild(lbl);
+    total.appendChild(val);
+    card.appendChild(total);
+
+    return card;
+  }
+
+  function render() {
+    primesEl.innerHTML = "";
+    state.primes.forEach(function (p, index) {
+      primesEl.appendChild(buildCard(p, index));
+    });
+    refreshTotals();
+  }
+
+  // Met à jour les totaux affichés sans tout reconstruire.
+  function refreshTotals() {
+    var byId = {};
+    state.primes.forEach(function (p) { byId[p.id] = p; });
+
+    var vals = primesEl.querySelectorAll(".line-total-val");
+    for (var i = 0; i < vals.length; i++) {
+      var p = byId[vals[i].getAttribute("data-id")];
+      if (p) vals[i].textContent = euro.format(lineTotal(p));
+    }
+    grandTotalEl.textContent = euro.format(grandTotal());
+  }
+
   function updatePeriodPrint() {
     var v = (state.period || "").trim();
     periodPrintEl.textContent = v ? "Période : " + v : "";
   }
+
+  // ---- Actions ------------------------------------------------------------
 
   periodEl.addEventListener("input", function () {
     state.period = periodEl.value;
@@ -666,28 +852,25 @@
     saveState();
   });
 
-  // Réinitialise toutes les valeurs (taux ET quantités) aux valeurs par défaut.
+  // Réinitialise taux, quantités et période aux valeurs par défaut.
   document.getElementById("resetAll").addEventListener("click", function () {
     state.primes.forEach(function (p) {
-      var def = null;
-      for (var i = 0; i < DEFAULT_PRIMES.length; i++) {
-        if (DEFAULT_PRIMES[i].id === p.id) { def = DEFAULT_PRIMES[i]; break; }
-      }
+      var def = findDefault(p.id);
       if (def) {
         p.rate = def.rate;
         p.qty = def.fixedQty ? 1 : 0;
       } else {
-        // Prime personnalisée : on remet la quantité à zéro.
-        p.qty = 0;
+        p.qty = 0; // prime personnalisée : quantité remise à zéro
       }
     });
     state.period = "";
     periodEl.value = "";
+    updatePeriodPrint();
     saveState();
     render();
   });
 
-  // Ajout d'une prime via formulaire intégré (pas de prompt(), bloqué sur mobile).
+  // Ajout d'une ligne via formulaire intégré (pas de prompt(), bloqué sur mobile).
   var addForm = document.getElementById("addForm");
   var newName = document.getElementById("newName");
   var newRate = document.getElementById("newRate");
@@ -699,7 +882,8 @@
 
   document.getElementById("addCancel").addEventListener("click", function () {
     addForm.classList.remove("show");
-    newName.value = ""; newRate.value = "";
+    newName.value = "";
+    newRate.value = "";
   });
 
   document.getElementById("addConfirm").addEventListener("click", function () {
@@ -708,12 +892,13 @@
     state.primes.push({
       id: "custom-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
       name: label,
-      unit: "",
       rate: parseNum(newRate.value),
       qty: 0,
+      fixedQty: false,
       custom: true
     });
-    newName.value = ""; newRate.value = "";
+    newName.value = "";
+    newRate.value = "";
     addForm.classList.remove("show");
     saveState();
     render();
@@ -723,11 +908,320 @@
     window.print();
   });
 
-  // --- Init ---
+  // ---- Initialisation -----------------------------------------------------
+
   loadState();
   periodEl.value = state.period;
   updatePeriodPrint();
   render();
+})();
+
+/* =====================================================================
+   Onglet « Simulateur de déplacement » — amplitude de service
+   ===================================================================== */
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "deplacement-v1";
+  var DAY = 24 * 60;       // minutes dans une journée
+  var DEFAULT_DAYS = 5;    // nombre de jours affichés par défaut
+
+  // ---- Helpers horaires ---------------------------------------------------
+
+  // Pendant la frappe : ne garde que les chiffres (max 4) et insère le « h »
+  // après les 2 premiers chiffres -> "0730" devient "07h30".
+  function formatTime(v) {
+    var d = String(v || "").replace(/\D/g, "").slice(0, 4);
+    return d.length <= 2 ? d : d.slice(0, 2) + "h" + d.slice(2);
+  }
+
+  // "07h30" -> minutes, ou null si incomplet/invalide (h 00-23, m 00-59).
+  function toMinutes(v) {
+    var d = String(v || "").replace(/\D/g, "");
+    if (d.length !== 4) return null;
+    var h = +d.slice(0, 2);
+    var m = +d.slice(2);
+    if (h > 23 || m > 59) return null;
+    return h * 60 + m;
+  }
+
+  // Amplitude d'une plage : fin - début, +24h si la fin passe minuit.
+  function span(startMin, endMin) {
+    if (startMin === null || endMin === null) return null;
+    var d = endMin - startMin;
+    if (d < 0) d += DAY;
+    return d;
+  }
+
+  // minutes -> "XhMM" (ex. 555 -> "9h15"), ou "—" si null.
+  function fmtDuration(min) {
+    if (min === null) return "—";
+    var h = Math.floor(min / 60);
+    var m = min % 60;
+    return h + "h" + (m < 10 ? "0" : "") + m;
+  }
+
+  // ---- État + persistance -------------------------------------------------
+
+  var state;
+
+  function newDay() {
+    // s/e = service ; aS = départ trajet aller ; rE = retour trajet retour.
+    return { s: "", e: "", aS: "", rE: "" };
+  }
+
+  function defaultState() {
+    var days = [];
+    for (var i = 0; i < DEFAULT_DAYS; i++) days.push(newDay());
+    return { firstDate: "", days: days };
+  }
+
+  function loadState() {
+    try {
+      var s = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if (s && Array.isArray(s.days) && s.days.length) {
+        return {
+          firstDate: s.firstDate || "",
+          days: s.days.map(function (d) {
+            return {
+              s: d.s || "", e: d.e || "",
+              aS: d.aS || "", rE: d.rE || ""
+            };
+          })
+        };
+      }
+    } catch (e) { /* ignore */ }
+    return defaultState();
+  }
+
+  function saveState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch (e) { /* stockage indisponible */ }
+  }
+
+  // ---- Dates --------------------------------------------------------------
+
+  // Libellé du jour i : date du premier jour + i, sinon « Jour i+1 ».
+  function dayLabel(i) {
+    if (state.firstDate) {
+      var d = new Date(state.firstDate + "T00:00:00");
+      if (!isNaN(d.getTime())) {
+        d.setDate(d.getDate() + i);
+        var txt = d.toLocaleDateString("fr-FR", {
+          weekday: "long", day: "2-digit", month: "long"
+        });
+        return txt.charAt(0).toUpperCase() + txt.slice(1);
+      }
+    }
+    return "Jour " + (i + 1);
+  }
+
+  // ---- Calcul -------------------------------------------------------------
+
+  // Amplitude d'un jour = amplitude de service + durées des trajets aller/retour
+  // (un trajet incomplet compte pour 0).
+  function dayAmplitude(day) {
+    var service = span(toMinutes(day.s), toMinutes(day.e));
+    if (service === null) return null;
+    // Trajet aller : de l'heure de départ jusqu'au début de service.
+    var aller = span(toMinutes(day.aS), toMinutes(day.s)) || 0;
+    // Trajet retour : de la fin de service jusqu'à l'heure de retour.
+    var retour = span(toMinutes(day.e), toMinutes(day.rE)) || 0;
+    return service + aller + retour;
+  }
+
+  // Texte d'amplitude affiché : « 00h00 » si rien de saisi.
+  function dayAmpText(day) {
+    var a = dayAmplitude(day);
+    return a === null ? "00h00" : fmtDuration(a);
+  }
+
+  // Début / fin de journée « prise de service » (trajet inclus s'il est saisi).
+  function dayStart(day) {
+    var a = toMinutes(day.aS);
+    return a !== null ? a : toMinutes(day.s);
+  }
+  function dayEnd(day) {
+    var r = toMinutes(day.rE);
+    return r !== null ? r : toMinutes(day.e);
+  }
+
+  // Temps de repos entre la fin d'un jour et la prise de service du lendemain.
+  function restMinutes(prev, next) {
+    var end = dayEnd(prev);
+    var start = dayStart(next);
+    if (end === null || start === null) return null;
+    return start + DAY - end; // jours consécutifs : on passe la nuit
+  }
+
+  // ---- Rendu --------------------------------------------------------------
+
+  var daysEl = document.getElementById("days");
+  var firstDateEl = document.getElementById("firstDate");
+
+  // Champ horaire : formatage auto + clavier numérique.
+  // Champ horaire compact (input seul, sans label) : formatage auto + pavé num.
+  function timeInput(id, value, onInput) {
+    var input = document.createElement("input");
+    input.type = "text";
+    input.inputMode = "numeric";
+    input.className = "field-input time-cell";
+    input.id = id;
+    input.maxLength = 5;
+    input.placeholder = "00h00";
+    input.value = value || "";
+    input.addEventListener("input", function () {
+      input.value = formatTime(input.value);
+      onInput(input.value);
+    });
+    return input;
+  }
+
+  // Une ligne « libellé | Début | Fin ».
+  // Cellule « valeur implicite » (= heure de service), pour la colonne vide.
+  function impliedCell() {
+    var s = document.createElement("span");
+    s.className = "seg-implied";
+    s.textContent = "= service";
+    return s;
+  }
+
+  // Une ligne « libellé | col Début | col Fin » (chaque cellule = input ou repère).
+  function segRow(labelText, cls, startCell, endCell) {
+    var row = document.createElement("div");
+    row.className = "seg-row " + cls;
+    var lab = document.createElement("span");
+    lab.className = "seg-label";
+    lab.textContent = labelText;
+    row.appendChild(lab);
+    row.appendChild(startCell);
+    row.appendChild(endCell);
+    return row;
+  }
+
+  function buildDay(day, i) {
+    var card = document.createElement("div");
+    card.className = "card day-card";
+
+    // En-tête : libellé du jour + amplitude + suppression.
+    var head = document.createElement("div");
+    head.className = "label-row";
+    var name = document.createElement("span");
+    name.className = "name";
+    name.textContent = dayLabel(i);
+    head.appendChild(name);
+
+    var right = document.createElement("div");
+    right.className = "day-head-right";
+    var amp = document.createElement("span");
+    amp.className = "day-amp";
+    amp.id = "dayAmp-" + i;
+    amp.textContent = dayAmpText(day);
+    right.appendChild(amp);
+
+    if (state.days.length > 1) {
+      var del = document.createElement("button");
+      del.type = "button";
+      del.className = "del-btn";
+      del.textContent = "✕";
+      del.setAttribute("aria-label", "Supprimer ce jour");
+      del.addEventListener("click", function () {
+        state.days.splice(i, 1);
+        saveState();
+        renderDays();
+      });
+      right.appendChild(del);
+    }
+    head.appendChild(right);
+    card.appendChild(head);
+
+    // En-têtes de colonnes : (vide) | Début | Fin.
+    var colHead = document.createElement("div");
+    colHead.className = "seg-head";
+    colHead.innerHTML = "<span></span><span>Début</span><span>Fin</span>";
+    card.appendChild(colHead);
+
+    // Ordre demandé : Trajet aller (Début seul), Service, Trajet retour (Fin seule).
+    card.appendChild(segRow("Trajet aller", "aller",
+      timeInput("aller-" + i + "-s", day.aS, function (v) { day.aS = v; saveState(); compute(); }),
+      impliedCell()
+    ));
+    card.appendChild(segRow("Service", "service",
+      timeInput("svc-" + i + "-s", day.s, function (v) { day.s = v; saveState(); compute(); }),
+      timeInput("svc-" + i + "-e", day.e, function (v) { day.e = v; saveState(); compute(); })
+    ));
+    card.appendChild(segRow("Trajet retour", "retour",
+      impliedCell(),
+      timeInput("retour-" + i + "-e", day.rE, function (v) { day.rE = v; saveState(); compute(); })
+    ));
+
+    return card;
+  }
+
+  // Compteur de repos inséré entre deux jours.
+  function buildRest(i) {
+    var row = document.createElement("div");
+    row.className = "rest-row";
+    var lab = document.createElement("span");
+    lab.className = "rest-label";
+    lab.textContent = "Temps de repos";
+    var val = document.createElement("span");
+    val.className = "rest-value";
+    val.id = "rest-" + i;
+    row.appendChild(lab);
+    row.appendChild(val);
+    return row;
+  }
+
+  function renderDays() {
+    daysEl.innerHTML = "";
+    state.days.forEach(function (day, i) {
+      daysEl.appendChild(buildDay(day, i));
+      if (i < state.days.length - 1) daysEl.appendChild(buildRest(i));
+    });
+    compute();
+  }
+
+  // Met à jour l'amplitude de chaque jour et les temps de repos intermédiaires.
+  function compute() {
+    state.days.forEach(function (day, i) {
+      var el = document.getElementById("dayAmp-" + i);
+      if (el) el.textContent = dayAmpText(day);
+
+      var rest = document.getElementById("rest-" + i);
+      if (rest) {
+        var r = restMinutes(day, state.days[i + 1]);
+        rest.textContent = fmtDuration(r);
+      }
+    });
+  }
+
+  // ---- Initialisation -----------------------------------------------------
+
+  state = loadState();
+
+  firstDateEl.value = state.firstDate;
+  firstDateEl.addEventListener("change", function () {
+    state.firstDate = firstDateEl.value;
+    saveState();
+    renderDays(); // met à jour les libellés de date
+  });
+
+  document.getElementById("addDay").addEventListener("click", function () {
+    state.days.push(newDay());
+    saveState();
+    renderDays();
+  });
+
+  // Réinitialise tout le simulateur : date effacée et 5 jours vides.
+  document.getElementById("resetDep").addEventListener("click", function () {
+    state = defaultState();
+    firstDateEl.value = "";
+    saveState();
+    renderDays();
+  });
+
+  renderDays();
 })();
 </script>
 </body>
