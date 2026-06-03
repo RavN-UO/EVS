@@ -1494,12 +1494,9 @@
         nameWrap.appendChild(badge);
       }
     }
-    head.appendChild(nameWrap);
 
-    var right = document.createElement("div");
-    right.className = "day-head-right";
-
-    // Case « RP » (journée non travaillée).
+    // Case « RP » (journée non travaillée), juste à droite de la date
+    // (et de la mention LU/MA quand elle est présente).
     var rpLbl = document.createElement("label");
     rpLbl.className = "rp-toggle";
     var rpCb = document.createElement("input");
@@ -1512,7 +1509,12 @@
     });
     rpLbl.appendChild(rpCb);
     rpLbl.appendChild(document.createTextNode(" RP"));
-    right.appendChild(rpLbl);
+    nameWrap.appendChild(rpLbl);
+
+    head.appendChild(nameWrap);
+
+    var right = document.createElement("div");
+    right.className = "day-head-right";
 
     if (!day.rp) {
       var amp = document.createElement("span");
