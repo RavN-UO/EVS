@@ -271,7 +271,6 @@
     gap: 10px;
     align-items: end;
   }
-  .grid.single { grid-template-columns: 1fr; }
   .grid .field label {
     display: block;
     font-size: 0.8rem;
@@ -415,7 +414,6 @@
     margin-bottom: 12px;
   }
   .date-bar label { font-size: 0.95rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
-  .date-bar input[type="date"] { flex: 1 1 auto; padding: 9px 12px; }
 
   /* Champ date : on n'affiche JAMAIS le texte natif (« jj/mm/aaaa » ou la date)
      — le champ <input type="date"> ne sert qu'au calendrier. On peint par-dessus
@@ -426,9 +424,13 @@
   .date-input-wrap input[type="date"] {
     width: 100%;
     min-width: 0;
+    padding: 9px 12px;
     box-sizing: border-box;
-    color: transparent;   /* masque le texte natif dans tous les états */
+    color: transparent;   /* masque le texte natif (jj/mm/aaaa) hors focus */
   }
+  /* Webkit : le « jj/mm/aaaa » réapparaît au focus malgré color:transparent ;
+     on masque carrément la zone d'édition (l'icône calendrier reste visible). */
+  .date-input-wrap input[type="date"]::-webkit-datetime-edit { opacity: 0; }
   .date-input-wrap .date-ph {
     position: absolute;
     left: 12px;
@@ -518,7 +520,7 @@
   .rp-toggle input { width: 16px; height: 16px; accent-color: var(--rest); }
   .day-card.rp { background: var(--rest-bg); border-color: var(--rest); }
 
-  /* Options du jour : Jour/Nuit + Coupure */
+  /* Options du jour : bascule Jour / Nuit (la Coupure est dans la ligne Service) */
   .day-opts {
     display: flex;
     align-items: center;
