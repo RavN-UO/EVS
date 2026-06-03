@@ -219,7 +219,37 @@
     gap: 8px;
     margin-bottom: 10px;
   }
-  .card .name { font-weight: 600; font-size: 1.1rem; }
+  .card .name { font-weight: 600; font-size: 1.1rem; color: var(--accent-dark); }
+
+  /* Légères couleurs dans le formulaire EVS (lisibilité) */
+  #primes .card { border-left: 4px solid var(--accent); }
+  #primes .line-total-val { color: var(--accent-dark); }
+
+  /* Taux horaire (carte Traitement) */
+  .rate-hour {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: var(--reset-bg);
+    border-radius: 10px;
+  }
+  .rate-hour .rh-label { font-size: 0.85rem; color: var(--muted); font-weight: 600; flex: 1 1 auto; }
+  .rate-hour .rh-hint { font-weight: 400; font-size: 0.72rem; color: var(--muted); }
+  .rate-hour .rh-val { font-weight: 700; color: var(--accent); font-size: 1.05rem; white-space: nowrap; }
+
+  /* Indemnité de résidence : champ discret (ne sert qu'au taux horaire) */
+  .field-residence label { font-style: italic; font-size: 0.72rem; }
+  .field-residence .field-input {
+    font-size: 0.85rem;
+    padding: 7px 9px;
+    border-style: dashed;
+    border-color: #e0d4db;
+    background: #faf7f9;
+    color: var(--muted);
+  }
+
   .del-btn {
     background: none;
     border: none;
@@ -453,13 +483,31 @@
   .rp-toggle input { width: 16px; height: 16px; accent-color: var(--rest); }
   .day-card.rp { background: var(--rest-bg); border-color: var(--rest); }
 
+  /* Options du jour : Jour/Nuit + Coupure */
+  .day-opts {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin: 6px 0 10px;
+  }
+  .coupure-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .coupure-toggle input { width: 16px; height: 16px; accent-color: var(--accent); }
+
   /* Bascule Jour / Nuit */
   .switch {
     display: inline-flex;
     align-items: center;
     gap: 8px;
     cursor: pointer;
-    margin: 6px 0 10px;
     font-size: 0.82rem;
     font-weight: 700;
   }
@@ -554,7 +602,8 @@
     .wrap { max-width: none; }
 
     .tabs, #tab-deplacement,
-    .actions, .add-btn, .add-row, .add-form, .del-btn, .period, footer {
+    .actions, .add-btn, .add-row, .add-form, .del-btn, .period,
+    .rate-hour, .field-residence, footer {
       display: none !important;
     }
 
@@ -572,31 +621,55 @@
       margin-bottom: 4mm;
     }
 
-    /* Une ligne par prime, compact, avec de la place pour les ajouts. */
+    /* Une ligne par prime, compact. Largeurs FIXES pour que les libellés
+       Taux/Quantité/Total ne bougent pas selon les valeurs saisies
+       (jamais plus de 6 chiffres et une virgule). */
     .card {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       padding: 5px 12px;
       margin-bottom: 4px;
       border: 1px solid #d8c4cf;
       break-inside: avoid;
     }
     .card:nth-child(even) { background: #f7eef2; }
-    .card .label-row { margin: 0; flex: 1 1 auto; }
+    .card .label-row { margin: 0; flex: 1 1 auto; min-width: 0; }
     .card .name { font-size: 0.95rem; color: var(--accent-dark); }
     .card .grid {
       display: flex;
-      gap: 14px;
+      gap: 12px;
       margin: 0;
+      flex: 0 0 auto;
       grid-template-columns: none;
     }
-    .card .grid .field { display: flex; align-items: baseline; gap: 4px; }
+    .card .grid .field { display: flex; align-items: baseline; gap: 4px; flex: 0 0 auto; }
     .card .grid .field label { font-size: 0.7rem; margin: 0; color: var(--muted); }
-    .card .grid input { width: 60px; border: none; padding: 0; font-size: 0.9rem; background: transparent; }
-    .line-total { margin: 0; min-width: 92px; font-size: 0.95rem; }
-    .line-total .lbl { font-size: 0.7rem; color: var(--muted); }
-    .line-total-val { color: var(--accent-dark); }
+    .card .grid input {
+      width: 64px;            /* largeur fixe : « 123456, » max */
+      border: none;
+      padding: 0;
+      font-size: 0.9rem;
+      background: transparent;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .line-total {
+      margin: 0;
+      flex: 0 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      font-size: 0.95rem;
+    }
+    .line-total .lbl { font-size: 0.7rem; color: var(--muted); margin: 0; }
+    .line-total-val {
+      color: var(--accent-dark);
+      display: inline-block;
+      width: 88px;           /* largeur fixe pour le montant en € */
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
 
     .grand-total {
       background: var(--accent) !important;
@@ -755,7 +828,10 @@
 
   // ---- État + persistance -------------------------------------------------
 
-  var state = { period: "", primes: [] };
+  var state = { period: "", residence: "", primes: [] };
+
+  // Diviseur du calcul de taux horaire : (Traitement + indemnité résidence) / 140.
+  var HOURLY_DIVISOR = 140;
 
   function makeDefault(d) {
     return {
@@ -777,6 +853,9 @@
     if (saved && Array.isArray(saved.primes)) {
       saved.primes.forEach(function (p) { if (p && p.id) savedById[p.id] = p; });
       state.period = saved.period || "";
+      var r = saved.residence;
+      state.residence = (r === undefined || r === null || r === "") ? ""
+        : (typeof r === "number" ? numToInput(r) : String(r));
     }
 
     // Reconstruit dans l'ordre des primes par défaut (garantit l'affichage des
@@ -942,7 +1021,16 @@
     }));
 
     if (p.fixedQty) {
-      grid.classList.add("single");
+      // Traitement : 2e colonne = indemnité de résidence (pas de quantité).
+      var resField = buildField("Indemnité de résidence (€)", "residence", null, function (v) {
+        state.residence = v;
+        refreshTotals();
+        saveState();
+      });
+      // valeur initiale = chaîne saisie telle quelle
+      resField.querySelector("input").value = state.residence;
+      resField.classList.add("field-residence");
+      grid.appendChild(resField);
     } else {
       grid.appendChild(buildField("Quantité", "qty-" + p.id, p.qty, function (v) {
         p.qty = parseNum(v);
@@ -951,6 +1039,22 @@
       }));
     }
     card.appendChild(grid);
+
+    // Taux horaire = (Traitement + indemnité de résidence) / 140 (Traitement only),
+    // calculé seulement quand l'indemnité de résidence est renseignée.
+    if (p.fixedQty) {
+      var rh = document.createElement("div");
+      rh.className = "rate-hour";
+      var rhLbl = document.createElement("span");
+      rhLbl.className = "rh-label";
+      rhLbl.innerHTML = 'Taux horaire <span class="rh-hint">(renseigner le traitement + l’indemnité de résidence sans complément)</span>';
+      var rhVal = document.createElement("span");
+      rhVal.className = "rh-val";
+      rhVal.id = "tauxHoraire";
+      rh.appendChild(rhLbl);
+      rh.appendChild(rhVal);
+      card.appendChild(rh);
+    }
 
     // Total de la ligne.
     var total = document.createElement("div");
@@ -989,6 +1093,16 @@
     }
     grandTotalEl.textContent = euro.format(grandTotal());
     updateSummary();
+
+    // Taux horaire : seulement si l'indemnité de résidence est renseignée.
+    var rhEl = document.getElementById("tauxHoraire");
+    if (rhEl && byId.traitement) {
+      if (String(state.residence).trim() === "") {
+        rhEl.textContent = "";
+      } else {
+        rhEl.textContent = euro.format((byId.traitement.rate + parseNum(state.residence)) / HOURLY_DIVISOR);
+      }
+    }
   }
 
   function updatePeriodPrint() {
@@ -1016,6 +1130,7 @@
       }
     });
     state.period = "";
+    state.residence = "";
     periodEl.value = "";
     updatePeriodPrint();
     saveState();
@@ -1119,9 +1234,9 @@
   var state;
 
   function newDay() {
-    // s/e = service ; aS = départ trajet aller ; rE = retour trajet retour ;
-    // rp = journée non travaillée (repos) ; night = période de nuit.
-    return { s: "", e: "", aS: "", rE: "", rp: false, night: false };
+    // s/e = service ; aS = départ aller ; rE = retour ; rp = repos ;
+    // night = période de nuit ; coupure = déduit 1h de l'amplitude du jour.
+    return { s: "", e: "", aS: "", rE: "", rp: false, night: false, coupure: false };
   }
 
   function defaultState() {
@@ -1140,7 +1255,7 @@
             return {
               s: d.s || "", e: d.e || "",
               aS: d.aS || "", rE: d.rE || "",
-              rp: !!d.rp, night: !!d.night
+              rp: !!d.rp, night: !!d.night, coupure: !!d.coupure
             };
           })
         };
@@ -1193,7 +1308,9 @@
     var aller = span(toMinutes(day.aS), toMinutes(day.s)) || 0;
     // Trajet retour : de la fin de service jusqu'à l'heure de retour.
     var retour = span(toMinutes(day.e), toMinutes(day.rE)) || 0;
-    return service + aller + retour;
+    var total = service + aller + retour;
+    if (day.coupure) total -= 60; // coupure : déduit 1h
+    return Math.max(0, total);
   }
 
   // Texte d'amplitude affiché : « 00h00 » si rien de saisi.
@@ -1249,7 +1366,6 @@
   var daysEl = document.getElementById("days");
   var firstDateEl = document.getElementById("firstDate");
 
-  // Champ horaire : formatage auto + clavier numérique.
   // Champ horaire compact (input seul, sans label) : formatage auto + pavé num.
   function timeInput(id, value, onInput) {
     var input = document.createElement("input");
@@ -1358,6 +1474,10 @@
     // Journée non travaillée (RP) : aucune saisie, elle compte en repos.
     if (day.rp) return card;
 
+    // Options du jour : bascule Jour/Nuit + case Coupure.
+    var opts = document.createElement("div");
+    opts.className = "day-opts";
+
     // Bascule Jour / Nuit (fixe le seuil de repos : 12h jour, 14h nuit).
     var dn = document.createElement("label");
     dn.className = "switch";
@@ -1377,7 +1497,24 @@
     dn.appendChild(dnCb);
     dn.appendChild(track);
     dn.appendChild(swText);
-    card.appendChild(dn);
+    opts.appendChild(dn);
+
+    // Case « Coupure » : déduit 1h de l'amplitude du jour.
+    var cpLbl = document.createElement("label");
+    cpLbl.className = "coupure-toggle";
+    var cpCb = document.createElement("input");
+    cpCb.type = "checkbox";
+    cpCb.checked = day.coupure;
+    cpCb.addEventListener("change", function () {
+      day.coupure = cpCb.checked;
+      saveState();
+      compute();
+    });
+    cpLbl.appendChild(cpCb);
+    cpLbl.appendChild(document.createTextNode(" Coupure (−1h)"));
+    opts.appendChild(cpLbl);
+
+    card.appendChild(opts);
 
     // En-têtes de colonnes : (vide) | Début | Fin.
     var colHead = document.createElement("div");
@@ -1445,15 +1582,17 @@
       var next = i + 1;                 // jour travaillé qui suit ce compteur
       var p = prevWorked(next);         // dernier jour travaillé avant lui
       var rest = restBefore(next);
-      restVal.textContent = fmtDuration(rest);
+      restVal.textContent = fmtDuration(rest); // valeur affichée = repos total (indicatif)
 
-      // Couleur du compteur : vert si repos suffisant, rouge sinon.
-      // Une journée RP intercalée (p < i) garantit le repos -> reste vert,
-      // le temps ajouté par le RP ne joue pas sur la couleur.
+      // Couleur : vert si repos suffisant, rouge sinon. Le temps ajouté par
+      // d'éventuelles journées RP (chacune +24h) est INDICATIF et retiré du
+      // calcul de la couleur (on évalue le repos « comme si » jours consécutifs).
       var row = restVal.parentNode;
       row.classList.remove("ok", "bad");
       if (p === null || rest === null) return;
-      var ok = (p < i) || (rest >= restThreshold(state.days[p]));
+      var numRP = i - p;                       // journées RP intercalées
+      var effective = rest - numRP * DAY;
+      var ok = effective >= restThreshold(state.days[p]);
       row.classList.add(ok ? "ok" : "bad");
     });
   }
