@@ -417,6 +417,23 @@
   .date-bar label { font-size: 0.95rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
   .date-bar input[type="date"] { flex: 1 1 auto; padding: 9px 12px; }
 
+  /* Champ date : affiche « Calendrier » tant qu'aucune date n'est saisie
+     (les <input type="date"> ne gèrent pas l'attribut placeholder). */
+  .date-input-wrap { position: relative; flex: 1 1 auto; }
+  .date-input-wrap input[type="date"] { width: 100%; }
+  .date-input-wrap .date-ph {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--accent-dark);
+    font-weight: 600;
+  }
+  .date-input-wrap.filled .date-ph { display: none; }
+  /* Masque le « jj/mm/aaaa » natif tant que le champ est vide. */
+  .date-input-wrap:not(.filled) input[type="date"] { color: transparent; }
+
   .day-card { padding: 8px 10px; margin-bottom: 8px; }
   .day-card .label-row {
     margin-bottom: 6px;
@@ -782,7 +799,10 @@
   <section id="tab-deplacement" class="tab-panel" hidden>
     <div class="date-bar">
       <label for="firstDate">📅 Date</label>
-      <input type="date" id="firstDate">
+      <div class="date-input-wrap">
+        <input type="date" id="firstDate">
+        <span class="date-ph">Calendrier</span>
+      </div>
     </div>
 
     <div id="days"></div>
@@ -1068,7 +1088,7 @@
 
     if (p.fixedQty) {
       // Traitement : 2e colonne = indemnité de résidence (pas de quantité).
-      var resField = buildField("Indemnité de résidence (€)", "residence", null, function (v) {
+      var resField = buildField("Indemnité de résidence sans complément (€)", "residence", null, function (v) {
         state.residence = v;
         refreshTotals();
         saveState();
@@ -1107,7 +1127,7 @@
       rh.className = "rate-hour";
       var rhLbl = document.createElement("span");
       rhLbl.className = "rh-label";
-      rhLbl.innerHTML = 'Taux horaire <span class="rh-hint">(renseigner le traitement + l’indemnité de résidence sans complément)</span>';
+      rhLbl.innerHTML = 'Taux horaire <span class="rh-hint">(renseigner le traitement + l’indemnité de résidence)</span>';
       var rhVal = document.createElement("span");
       rhVal.className = "rh-val";
       rhVal.id = "tauxHoraire";
@@ -1676,11 +1696,21 @@
 
   // ---- Initialisation -----------------------------------------------------
 
+  // Affiche/masque le repère « Calendrier » selon que la date est saisie.
+  function syncDatePlaceholder() {
+    var wrap = firstDateEl.parentNode;
+    if (wrap && wrap.classList.contains("date-input-wrap")) {
+      wrap.classList.toggle("filled", !!firstDateEl.value);
+    }
+  }
+
   state = loadState();
 
   firstDateEl.value = state.firstDate;
+  syncDatePlaceholder();
   firstDateEl.addEventListener("change", function () {
     state.firstDate = firstDateEl.value;
+    syncDatePlaceholder();
     saveState();
     renderDays(); // met à jour les libellés de date
   });
@@ -1695,6 +1725,7 @@
   document.getElementById("resetDep").addEventListener("click", function () {
     state = defaultState();
     firstDateEl.value = "";
+    syncDatePlaceholder();
     saveState();
     renderDays();
   });
