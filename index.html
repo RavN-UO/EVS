@@ -879,6 +879,8 @@
   ];
 
   var euro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+  // Même nombre mais sans le symbole € (utilisé pour le taux horaire à l'impression).
+  var decimal2 = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // ---- Helpers de nombres -------------------------------------------------
 
@@ -1188,15 +1190,18 @@
     updateSummary();
 
     // Taux horaire : seulement si l'indemnité de résidence est renseignée.
-    // Même valeur à l'écran (#tauxHoraire) et à l'impression (#printTauxHoraire).
-    var rhText = "";
+    // À l'écran (#tauxHoraire) avec le symbole € ; à l'impression
+    // (#printTauxHoraire) sans le symbole €.
+    var rhScreen = "", rhPrint = "";
     if (byId.traitement && String(state.residence).trim() !== "") {
-      rhText = euro.format((byId.traitement.rate + parseNum(state.residence)) / HOURLY_DIVISOR);
+      var th = (byId.traitement.rate + parseNum(state.residence)) / HOURLY_DIVISOR;
+      rhScreen = euro.format(th);
+      rhPrint = decimal2.format(th);
     }
     var rhEl = document.getElementById("tauxHoraire");
-    if (rhEl) rhEl.textContent = rhText;
+    if (rhEl) rhEl.textContent = rhScreen;
     var printRhEl = document.getElementById("printTauxHoraire");
-    if (printRhEl) printRhEl.textContent = rhText;
+    if (printRhEl) printRhEl.textContent = rhPrint;
   }
 
   function updatePeriodPrint() {
