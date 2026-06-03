@@ -418,17 +418,26 @@
   .date-bar input[type="date"] { flex: 1 1 auto; padding: 9px 12px; }
 
   /* Champ date : affiche « Calendrier » tant qu'aucune date n'est saisie
-     (les <input type="date"> ne gèrent pas l'attribut placeholder). */
-  .date-input-wrap { position: relative; flex: 1 1 auto; }
-  .date-input-wrap input[type="date"] { width: 100%; }
+     (les <input type="date"> ne gèrent pas l'attribut placeholder).
+     flex-basis 0 + min-width 0 = le champ occupe toujours toute la largeur
+     disponible (sinon, sur mobile, il se réduit à la taille de son contenu). */
+  .date-input-wrap { position: relative; flex: 1 1 0%; min-width: 0; }
+  .date-input-wrap input[type="date"] {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
   .date-input-wrap .date-ph {
     position: absolute;
     left: 12px;
+    right: 40px;          /* laisse l'icône calendrier visible à droite */
     top: 50%;
     transform: translateY(-50%);
-    pointer-events: none;
+    pointer-events: none; /* le clic atteint le champ -> ouvre le calendrier */
     color: var(--accent-dark);
     font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
   }
   .date-input-wrap.filled .date-ph { display: none; }
   /* Masque le « jj/mm/aaaa » natif tant que le champ est vide. */
@@ -1088,7 +1097,7 @@
 
     if (p.fixedQty) {
       // Traitement : 2e colonne = indemnité de résidence (pas de quantité).
-      var resField = buildField("Indemnité de résidence sans complément (€)", "residence", null, function (v) {
+      var resField = buildField("Indemnité de résidence - sans complément (€)", "residence", null, function (v) {
         state.residence = v;
         refreshTotals();
         saveState();
@@ -1704,15 +1713,25 @@
     }
   }
 
-  state = loadState();
-
-  firstDateEl.value = state.firstDate;
-  syncDatePlaceholder();
-  firstDateEl.addEventListener("change", function () {
+  function onDateChanged() {
     state.firstDate = firstDateEl.value;
     syncDatePlaceholder();
     saveState();
     renderDays(); // met à jour les libellés de date
+  }
+
+  state = loadState();
+
+  firstDateEl.value = state.firstDate;
+  syncDatePlaceholder();
+  // « change » + « input » : couvre tous les navigateurs (desktop et mobile).
+  firstDateEl.addEventListener("change", onDateChanged);
+  firstDateEl.addEventListener("input", onDateChanged);
+  // Tout le champ ouvre le calendrier (pas seulement la petite icône).
+  firstDateEl.parentNode.addEventListener("click", function () {
+    if (typeof firstDateEl.showPicker === "function") {
+      try { firstDateEl.showPicker(); } catch (e) { /* geste requis : ignoré */ }
+    }
   });
 
   document.getElementById("addDay").addEventListener("click", function () {
