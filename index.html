@@ -1270,9 +1270,24 @@
     render();
   });
 
-  document.getElementById("pdfBtn").addEventListener("click", function () {
-    window.print();
-  });
+  // Export PDF : réservé au navigateur sur ordinateur. Sur mobile/tablette
+  // (appareil tactile sans souris, ou user-agent mobile), le bouton est retiré.
+  function isMobileDevice() {
+    var mq = window.matchMedia;
+    var coarse = !!(mq && mq("(pointer: coarse)").matches);
+    var noHover = !!(mq && mq("(hover: none)").matches);
+    var uaMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent || "");
+    return uaMobile || (coarse && noHover);
+  }
+
+  var pdfBtn = document.getElementById("pdfBtn");
+  if (isMobileDevice()) {
+    pdfBtn.remove(); // pas d'export PDF sur mobile
+  } else {
+    pdfBtn.addEventListener("click", function () {
+      window.print();
+    });
+  }
 
   // ---- Initialisation -----------------------------------------------------
 
