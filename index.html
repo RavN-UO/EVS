@@ -239,6 +239,10 @@
   .rate-hour .rh-hint { font-weight: 400; font-size: 0.72rem; color: var(--muted); }
   .rate-hour .rh-val { font-weight: 700; color: var(--accent); font-size: 1.05rem; white-space: nowrap; }
 
+  /* Éléments visibles uniquement à l'impression (taux horaire dans la colonne
+     Taux du Traitement + cale d'alignement à la place de la quantité). */
+  .print-rate-h, .print-qty-spacer { display: none; }
+
   /* Indemnité de résidence : champ discret (ne sert qu'au taux horaire) */
   .field-residence label { font-style: italic; font-size: 0.72rem; }
   .field-residence .field-input {
@@ -267,7 +271,6 @@
     gap: 10px;
     align-items: end;
   }
-  .grid.single { grid-template-columns: 1fr; }
   .grid .field label {
     display: block;
     font-size: 0.8rem;
@@ -411,7 +414,38 @@
     margin-bottom: 12px;
   }
   .date-bar label { font-size: 0.95rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
-  .date-bar input[type="date"] { flex: 1 1 auto; padding: 9px 12px; }
+
+  /* Champ date : on n'affiche JAMAIS le texte natif (« jj/mm/aaaa » ou la date)
+     — le champ <input type="date"> ne sert qu'au calendrier. On peint par-dessus
+     notre propre libellé (« Calendrier » si vide, la date choisie sinon).
+     flex-basis 0 + min-width 0 = le champ occupe toujours toute la largeur
+     disponible (sinon, sur mobile, il se réduit à la taille de son contenu). */
+  .date-input-wrap { position: relative; flex: 1 1 0%; min-width: 0; }
+  .date-input-wrap input[type="date"] {
+    width: 100%;
+    min-width: 0;
+    padding: 9px 12px;
+    box-sizing: border-box;
+    color: transparent;   /* masque le texte natif (jj/mm/aaaa) hors focus */
+  }
+  /* Webkit : le « jj/mm/aaaa » réapparaît au focus malgré color:transparent ;
+     on masque carrément la zone d'édition (l'icône calendrier reste visible). */
+  .date-input-wrap input[type="date"]::-webkit-datetime-edit { opacity: 0; }
+  .date-input-wrap .date-ph {
+    position: absolute;
+    left: 12px;
+    right: 40px;          /* laisse l'icône calendrier visible à droite */
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none; /* le clic atteint le champ -> ouvre le calendrier */
+    color: var(--muted);  /* aspect « placeholder » tant que vide */
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* Date saisie : le libellé prend l'aspect d'une valeur. */
+  .date-input-wrap.filled .date-ph { color: var(--accent-dark); }
 
   .day-card { padding: 8px 10px; margin-bottom: 8px; }
   .day-card .label-row {
@@ -424,8 +458,11 @@
   .day-head-right {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
   }
+  /* La croix de suppression est écartée de la case RP pour éviter les clics
+     accidentels (surtout en mode RP, où l'amplitude n'est pas affichée). */
+  .day-head-right .del-btn { margin-left: 6px; padding: 0 6px; }
   .day-amp {
     font-weight: 700;
     color: #fff;
@@ -438,7 +475,7 @@
   .seg-head,
   .seg-row {
     display: grid;
-    grid-template-columns: 80px 1fr 1fr;
+    grid-template-columns: 80px 1fr 56px 1fr;
     gap: 6px;
     align-items: center;
   }
@@ -483,7 +520,7 @@
   .rp-toggle input { width: 16px; height: 16px; accent-color: var(--rest); }
   .day-card.rp { background: var(--rest-bg); border-color: var(--rest); }
 
-  /* Options du jour : Jour/Nuit + Coupure */
+  /* Options du jour : bascule Jour / Nuit (la Coupure est dans la ligne Service) */
   .day-opts {
     display: flex;
     align-items: center;
@@ -501,6 +538,19 @@
     cursor: pointer;
   }
   .coupure-toggle input { width: 16px; height: 16px; accent-color: var(--accent); }
+
+  /* Coupure placée au centre de la ligne Service : libellé « Coupure » au-dessus
+     de la case à cocher, le tout centré entre le début et la fin de service. */
+  .coupure-toggle.coupure-center {
+    flex-direction: column;
+    gap: 2px;
+    justify-self: center;
+    text-align: center;
+    font-size: 0.7rem;
+    line-height: 1.05;
+    color: var(--accent-dark);
+  }
+  .coupure-toggle.coupure-center input { margin: 0; }
 
   /* Bascule Jour / Nuit */
   .switch {
@@ -607,10 +657,9 @@
       display: none !important;
     }
 
-    /* En-tête conservé (cadre + slogan), un peu réduit. */
+    /* En-tête conservé (cadre rayé + slogan) : mêmes proportions que sur le
+       site (police et cadre inchangés) pour un rendu PDF identique au web. */
     header { margin-bottom: 5mm; }
-    .banner-text .b-line1 { font-size: 0.9rem; }
-    .banner-text .b-line2 { font-size: 1.3rem; }
 
     /* Période affichée dans le PDF. */
     .period-print {
@@ -669,6 +718,24 @@
       width: 88px;           /* largeur fixe pour le montant en € */
       text-align: right;
       font-variant-numeric: tabular-nums;
+    }
+
+    /* Ligne Traitement : la colonne Taux affiche le TAUX HORAIRE (aligné avec
+       les taux des autres lignes grâce à la cale en lieu et place de la
+       quantité) ; le montant du traitement reste à droite, dans Total. */
+    .card .taux-traitement input { display: none; }
+    .card .taux-traitement .print-rate-h {
+      display: inline-block;
+      width: 64px;
+      text-align: right;
+      font-size: 0.9rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent-dark);
+    }
+    .card .print-qty-spacer {
+      display: flex;
+      visibility: hidden;     /* occupe la place de la quantité sans l'afficher */
+      flex: 0 0 auto;
     }
 
     .grand-total {
@@ -745,7 +812,10 @@
   <section id="tab-deplacement" class="tab-panel" hidden>
     <div class="date-bar">
       <label for="firstDate">📅 Date</label>
-      <input type="date" id="firstDate">
+      <div class="date-input-wrap">
+        <input type="date" id="firstDate">
+        <span class="date-ph">Calendrier</span>
+      </div>
     </div>
 
     <div id="days"></div>
@@ -809,6 +879,8 @@
   ];
 
   var euro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+  // Même nombre mais sans le symbole € (utilisé pour le taux horaire à l'impression).
+  var decimal2 = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // ---- Helpers de nombres -------------------------------------------------
 
@@ -1014,15 +1086,24 @@
     var grid = document.createElement("div");
     grid.className = "grid";
 
-    grid.appendChild(buildField("Taux (€)", "rate-" + p.id, p.rate, function (v) {
+    var rateField = buildField("Taux (€)", "rate-" + p.id, p.rate, function (v) {
       p.rate = parseNum(v);
       refreshTotals();
       saveState();
-    }));
+    });
+    if (p.fixedQty) {
+      // Traitement : à l'impression, la colonne Taux affiche le taux horaire.
+      rateField.classList.add("taux-traitement");
+      var printRh = document.createElement("span");
+      printRh.className = "print-rate-h";
+      printRh.id = "printTauxHoraire";
+      rateField.appendChild(printRh);
+    }
+    grid.appendChild(rateField);
 
     if (p.fixedQty) {
       // Traitement : 2e colonne = indemnité de résidence (pas de quantité).
-      var resField = buildField("Indemnité de résidence (€)", "residence", null, function (v) {
+      var resField = buildField("Indemnité de résidence - sans complément (€)", "residence", null, function (v) {
         state.residence = v;
         refreshTotals();
         saveState();
@@ -1031,6 +1112,20 @@
       resField.querySelector("input").value = state.residence;
       resField.classList.add("field-residence");
       grid.appendChild(resField);
+
+      // Cale (impression uniquement) : occupe la colonne « Quantité » des autres
+      // lignes pour que le taux horaire s'aligne avec les autres taux.
+      var spacer = document.createElement("div");
+      spacer.className = "field print-qty-spacer";
+      var spLbl = document.createElement("label");
+      spLbl.textContent = "Quantité";
+      var spIn = document.createElement("input");
+      spIn.type = "text";
+      spIn.tabIndex = -1;
+      spIn.setAttribute("aria-hidden", "true");
+      spacer.appendChild(spLbl);
+      spacer.appendChild(spIn);
+      grid.appendChild(spacer);
     } else {
       grid.appendChild(buildField("Quantité", "qty-" + p.id, p.qty, function (v) {
         p.qty = parseNum(v);
@@ -1047,7 +1142,7 @@
       rh.className = "rate-hour";
       var rhLbl = document.createElement("span");
       rhLbl.className = "rh-label";
-      rhLbl.innerHTML = 'Taux horaire <span class="rh-hint">(renseigner le traitement + l’indemnité de résidence sans complément)</span>';
+      rhLbl.innerHTML = 'Taux horaire <span class="rh-hint">(renseigner le traitement + l’indemnité de résidence)</span>';
       var rhVal = document.createElement("span");
       rhVal.className = "rh-val";
       rhVal.id = "tauxHoraire";
@@ -1095,14 +1190,18 @@
     updateSummary();
 
     // Taux horaire : seulement si l'indemnité de résidence est renseignée.
-    var rhEl = document.getElementById("tauxHoraire");
-    if (rhEl && byId.traitement) {
-      if (String(state.residence).trim() === "") {
-        rhEl.textContent = "";
-      } else {
-        rhEl.textContent = euro.format((byId.traitement.rate + parseNum(state.residence)) / HOURLY_DIVISOR);
-      }
+    // À l'écran (#tauxHoraire) avec le symbole € ; à l'impression
+    // (#printTauxHoraire) sans le symbole €.
+    var rhScreen = "", rhPrint = "";
+    if (byId.traitement && String(state.residence).trim() !== "") {
+      var th = (byId.traitement.rate + parseNum(state.residence)) / HOURLY_DIVISOR;
+      rhScreen = euro.format(th);
+      rhPrint = decimal2.format(th);
     }
+    var rhEl = document.getElementById("tauxHoraire");
+    if (rhEl) rhEl.textContent = rhScreen;
+    var printRhEl = document.getElementById("printTauxHoraire");
+    if (printRhEl) printRhEl.textContent = rhPrint;
   }
 
   function updatePeriodPrint() {
@@ -1383,7 +1482,6 @@
     return input;
   }
 
-  // Une ligne « libellé | Début | Fin ».
   // Cellule vide (la colonne reste alignée, sans texte).
   function impliedCell() {
     var s = document.createElement("span");
@@ -1391,8 +1489,14 @@
     return s;
   }
 
-  // Une ligne « libellé | col Début | col Fin » (chaque cellule = input ou repère).
-  function segRow(labelText, cls, startCell, endCell) {
+  // Cellule centrale vide (réserve la place de la Coupure sur les autres lignes).
+  function centerCell() {
+    return document.createElement("span");
+  }
+
+  // Une ligne « libellé | col Début | col centre | col Fin »
+  // (chaque cellule = input, repère ou case Coupure).
+  function segRow(labelText, cls, startCell, midCell, endCell) {
     var row = document.createElement("div");
     row.className = "seg-row " + cls;
     var lab = document.createElement("span");
@@ -1400,6 +1504,7 @@
     lab.textContent = labelText;
     row.appendChild(lab);
     row.appendChild(startCell);
+    row.appendChild(midCell);
     row.appendChild(endCell);
     return row;
   }
@@ -1427,12 +1532,9 @@
         nameWrap.appendChild(badge);
       }
     }
-    head.appendChild(nameWrap);
 
-    var right = document.createElement("div");
-    right.className = "day-head-right";
-
-    // Case « RP » (journée non travaillée).
+    // Case « RP » (journée non travaillée), juste à droite de la date
+    // (et de la mention LU/MA quand elle est présente).
     var rpLbl = document.createElement("label");
     rpLbl.className = "rp-toggle";
     var rpCb = document.createElement("input");
@@ -1445,7 +1547,12 @@
     });
     rpLbl.appendChild(rpCb);
     rpLbl.appendChild(document.createTextNode(" RP"));
-    right.appendChild(rpLbl);
+    nameWrap.appendChild(rpLbl);
+
+    head.appendChild(nameWrap);
+
+    var right = document.createElement("div");
+    right.className = "day-head-right";
 
     if (!day.rp) {
       var amp = document.createElement("span");
@@ -1474,7 +1581,7 @@
     // Journée non travaillée (RP) : aucune saisie, elle compte en repos.
     if (day.rp) return card;
 
-    // Options du jour : bascule Jour/Nuit + case Coupure.
+    // Options du jour : bascule Jour/Nuit (la case Coupure est dans la ligne Service).
     var opts = document.createElement("div");
     opts.className = "day-opts";
 
@@ -1499,9 +1606,16 @@
     dn.appendChild(swText);
     opts.appendChild(dn);
 
-    // Case « Coupure » : déduit 1h de l'amplitude du jour.
-    var cpLbl = document.createElement("label");
-    cpLbl.className = "coupure-toggle";
+    card.appendChild(opts);
+
+    // Case « Coupure » (déduit 1h de l'amplitude) : placée au centre de la
+    // ligne Service, entre le début et la fin de service. Libellé « Coupure »
+    // au-dessus de la case à cocher.
+    var coupureCell = document.createElement("label");
+    coupureCell.className = "coupure-toggle coupure-center";
+    var cpText = document.createElement("span");
+    cpText.className = "cp-text";
+    cpText.textContent = "Coupure";
     var cpCb = document.createElement("input");
     cpCb.type = "checkbox";
     cpCb.checked = day.coupure;
@@ -1510,29 +1624,30 @@
       saveState();
       compute();
     });
-    cpLbl.appendChild(cpCb);
-    cpLbl.appendChild(document.createTextNode(" Coupure (−1h)"));
-    opts.appendChild(cpLbl);
+    coupureCell.appendChild(cpText);
+    coupureCell.appendChild(cpCb);
 
-    card.appendChild(opts);
-
-    // En-têtes de colonnes : (vide) | Début | Fin.
+    // En-têtes de colonnes : (vide) | Début | (centre vide) | Fin.
     var colHead = document.createElement("div");
     colHead.className = "seg-head";
-    colHead.innerHTML = "<span></span><span>Début</span><span>Fin</span>";
+    colHead.innerHTML = "<span></span><span>Début</span><span></span><span>Fin</span>";
     card.appendChild(colHead);
 
-    // Ordre demandé : Trajet aller (Début seul), Service, Trajet retour (Fin seule).
+    // Ordre demandé : Trajet aller (Début seul), Service (Coupure au centre),
+    // Trajet retour (Fin seule).
     card.appendChild(segRow("Trajet aller", "aller",
       timeInput("aller-" + i + "-s", day.aS, function (v) { day.aS = v; saveState(); compute(); }),
+      centerCell(),
       impliedCell()
     ));
     card.appendChild(segRow("Service", "service",
       timeInput("svc-" + i + "-s", day.s, function (v) { day.s = v; saveState(); compute(); }),
+      coupureCell,
       timeInput("svc-" + i + "-e", day.e, function (v) { day.e = v; saveState(); compute(); })
     ));
     card.appendChild(segRow("Trajet retour", "retour",
       impliedCell(),
+      centerCell(),
       timeInput("retour-" + i + "-e", day.rE, function (v) { day.rE = v; saveState(); compute(); })
     ));
 
@@ -1599,13 +1714,45 @@
 
   // ---- Initialisation -----------------------------------------------------
 
+  // Date « YYYY-MM-DD » -> « 02 juin 2026 » (ou "" si vide/invalide).
+  function fmtDateFr(iso) {
+    if (!iso) return "";
+    var d = new Date(iso + "T00:00:00");
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+  }
+
+  // Met à jour le libellé peint par-dessus le champ date : « Calendrier » tant
+  // qu'aucune date n'est saisie, sinon la date choisie (le texte natif du champ
+  // reste invisible en permanence — voir CSS).
+  function syncDatePlaceholder() {
+    var wrap = firstDateEl.parentNode;
+    if (!wrap || !wrap.classList.contains("date-input-wrap")) return;
+    var ph = wrap.querySelector(".date-ph");
+    var iso = firstDateEl.value;
+    wrap.classList.toggle("filled", !!iso);
+    if (ph) ph.textContent = iso ? fmtDateFr(iso) : "Calendrier";
+  }
+
+  function onDateChanged() {
+    state.firstDate = firstDateEl.value;
+    syncDatePlaceholder();
+    saveState();
+    renderDays(); // met à jour les libellés de date
+  }
+
   state = loadState();
 
   firstDateEl.value = state.firstDate;
-  firstDateEl.addEventListener("change", function () {
-    state.firstDate = firstDateEl.value;
-    saveState();
-    renderDays(); // met à jour les libellés de date
+  syncDatePlaceholder();
+  // « change » + « input » : couvre tous les navigateurs (desktop et mobile).
+  firstDateEl.addEventListener("change", onDateChanged);
+  firstDateEl.addEventListener("input", onDateChanged);
+  // Tout le champ ouvre le calendrier (pas seulement la petite icône).
+  firstDateEl.parentNode.addEventListener("click", function () {
+    if (typeof firstDateEl.showPicker === "function") {
+      try { firstDateEl.showPicker(); } catch (e) { /* geste requis : ignoré */ }
+    }
   });
 
   document.getElementById("addDay").addEventListener("click", function () {
@@ -1618,6 +1765,7 @@
   document.getElementById("resetDep").addEventListener("click", function () {
     state = defaultState();
     firstDateEl.value = "";
+    syncDatePlaceholder();
     saveState();
     renderDays();
   });
