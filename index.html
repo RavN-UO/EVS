@@ -33,8 +33,12 @@
     --total-bg2: #8c2a52;
     --reset-bg: #f0edf1;
     --stripe-dark: #2b2b30;
-    --rest: #1f6f7a;       /* compteur de repos (teal, distinct du bordeaux) */
+    --rest: #1f6f7a;       /* compteur de repos neutre (teal) */
     --rest-bg: #e8f3f4;
+    --ok: #1f8a4c;         /* repos suffisant (vert) */
+    --ok-bg: #e6f4ec;
+    --bad: #c0392b;        /* repos insuffisant (rouge) */
+    --bad-bg: #fbeae8;
   }
 
   /* ============================================================
@@ -310,6 +314,36 @@
   }
 
   /* ============================================================
+     Résumé (compteurs agrégés EVS)
+     ============================================================ */
+  .summary {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .summary-title {
+    font-weight: 700;
+    color: var(--accent-dark);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.9rem;
+  }
+  .sum-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .sum-row:last-child { border-bottom: none; }
+  .sum-row .sum-label { font-size: 0.9rem; }
+  .sum-row .sum-val { font-weight: 700; color: var(--accent-dark); white-space: nowrap; }
+
+  /* ============================================================
      Boutons d'action
      ============================================================ */
   .actions {
@@ -419,7 +453,56 @@
   .rp-toggle input { width: 16px; height: 16px; accent-color: var(--rest); }
   .day-card.rp { background: var(--rest-bg); border-color: var(--rest); }
 
-  /* Compteur de temps de repos entre deux jours (couleur distincte) */
+  /* Bascule Jour / Nuit */
+  .switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    margin: 6px 0 10px;
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+  .switch input { position: absolute; opacity: 0; pointer-events: none; }
+  .switch .track {
+    width: 40px;
+    height: 22px;
+    border-radius: 999px;
+    background: #c9b6c1;
+    position: relative;
+    transition: background .15s;
+    flex: 0 0 auto;
+  }
+  .switch .track::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    transition: left .15s;
+  }
+  .switch input:checked + .track { background: var(--accent-dark); }
+  .switch input:checked + .track::after { left: 20px; }
+  .switch input:focus-visible + .track { box-shadow: 0 0 0 3px rgba(140, 42, 82, 0.25); }
+  .switch .sw-text { color: var(--text); }
+
+  /* Libellé du jour + badge nuit (jour précédent / jour) */
+  .day-name-wrap { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .night-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--accent-dark);
+    background: #f3e6ec;
+    border-radius: 6px;
+    padding: 1px 6px;
+  }
+
+  /* Compteur de temps de repos entre deux jours.
+     Neutre (gris doux) quand vide, vert si repos suffisant, rouge sinon. */
   .rest-row {
     display: flex;
     align-items: center;
@@ -427,13 +510,19 @@
     gap: 8px;
     margin: 0 0 8px;
     padding: 5px 12px;
-    background: var(--rest-bg);
-    border: 1px dashed var(--rest);
+    background: #eef0f3;
+    border: 1px dashed #b7bcc6;
     border-radius: 999px;
     font-size: 0.85rem;
   }
-  .rest-row .rest-label { color: var(--rest); font-weight: 600; }
-  .rest-row .rest-value { color: var(--rest); font-weight: 700; }
+  .rest-row .rest-label { color: #767b85; font-weight: 600; }
+  .rest-row .rest-value { color: #767b85; font-weight: 700; }
+  .rest-row.ok { background: var(--ok-bg); border-color: var(--ok); }
+  .rest-row.ok .rest-label,
+  .rest-row.ok .rest-value { color: var(--ok); }
+  .rest-row.bad { background: var(--bad-bg); border-color: var(--bad); }
+  .rest-row.bad .rest-label,
+  .rest-row.bad .rest-value { color: var(--bad); }
 
   footer {
     text-align: center;
@@ -569,6 +658,10 @@
       <div class="gt-value" id="grandTotal">0,00 €</div>
     </div>
 
+    <div class="summary" id="summary">
+      <div class="summary-title">Résumé</div>
+    </div>
+
     <div class="actions">
       <button type="button" class="btn" id="resetAll">Réinitialiser</button>
       <button type="button" class="btn primary" id="pdfBtn">Exporter en PDF</button>
@@ -631,14 +724,15 @@
   // Primes par défaut. `id` stable pour la persistance ; `fixedQty` = quantité
   // bloquée à 1 et masquée (cas du Traitement).
   var DEFAULT_PRIMES = [
-    { id: "traitement",      name: "Traitement",        rate: 0,    fixedQty: true },
-    { id: "indemnite-local", name: "Indemnité Local",   rate: 435 },
-    { id: "repas",           name: "Repas",             rate: 20.50 },
-    { id: "conduite",        name: "Conduite (taux A)", rate: 4.86 },
-    { id: "txidf",           name: "Tx IDF",            rate: 13.82 },
-    { id: "tunnel",          name: "Tunnel",            rate: 0.99 },
-    { id: "deplacements",    name: "Déplacements",      rate: 82.00 },
-    { id: "weekends",        name: "Week-ends",         rate: 110.00 }
+    { id: "traitement",      name: "Traitement",          rate: 0,    fixedQty: true },
+    { id: "indemnite-local", name: "Indemnité local UPTX", rate: 435 },
+    { id: "txidf",           name: "Tx IDF",              rate: 13.82 },
+    { id: "repas",           name: "Repas",               rate: 20.50 },
+    { id: "conduite",        name: "Conduite (taux A)",   rate: 4.86 },
+    { id: "weekends",        name: "Week-ends",           rate: 110.00 },
+    { id: "castor",          name: "CASTOR",              rate: 52 },
+    { id: "deplacements",    name: "Déplacements",        rate: 82.00 },
+    { id: "tunnel",          name: "Tunnel",              rate: 0.99 }
   ];
 
   var euro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
@@ -736,12 +830,54 @@
     return g;
   }
 
+  // Compteurs du résumé : libellé + somme des totaux de certaines primes.
+  var SUMMARY = [
+    { label: "IND JOURNALIERE TRANSPORT PERSONNEL", ids: ["conduite"] },
+    { label: "ALLOC DE DEPLACEMENT REGIME GENERAL", ids: ["deplacements", "repas"] },
+    { label: "INDEMNITE LOCALE (Week-ends + CASTOR)", ids: ["weekends", "castor"] },
+    { label: "INDEMNITE LOCALE (UPTX)", ids: ["indemnite-local"] }
+  ];
+
+  // Somme des totaux de ligne des primes désignées par leurs id.
+  function sumForIds(ids) {
+    var byId = {};
+    state.primes.forEach(function (p) { byId[p.id] = p; });
+    var t = 0;
+    ids.forEach(function (id) { if (byId[id]) t += lineTotal(byId[id]); });
+    return t;
+  }
+
   // ---- Rendu --------------------------------------------------------------
 
   var primesEl = document.getElementById("primes");
   var grandTotalEl = document.getElementById("grandTotal");
+  var summaryEl = document.getElementById("summary");
   var periodEl = document.getElementById("period");
   var periodPrintEl = document.getElementById("periodPrint");
+
+  // Construit (une fois) les lignes du résumé ; valeurs mises à jour ensuite.
+  function buildSummary() {
+    SUMMARY.forEach(function (row, i) {
+      var r = document.createElement("div");
+      r.className = "sum-row";
+      var lab = document.createElement("span");
+      lab.className = "sum-label";
+      lab.textContent = row.label;
+      var val = document.createElement("span");
+      val.className = "sum-val";
+      val.id = "sum-" + i;
+      r.appendChild(lab);
+      r.appendChild(val);
+      summaryEl.appendChild(r);
+    });
+  }
+
+  function updateSummary() {
+    SUMMARY.forEach(function (row, i) {
+      var el = document.getElementById("sum-" + i);
+      if (el) el.textContent = euro.format(sumForIds(row.ids));
+    });
+  }
 
   // Construit un champ « label + input numérique ».
   function buildField(labelText, id, value, onInput) {
@@ -852,6 +988,7 @@
       if (p) vals[i].textContent = euro.format(lineTotal(p));
     }
     grandTotalEl.textContent = euro.format(grandTotal());
+    updateSummary();
   }
 
   function updatePeriodPrint() {
@@ -928,6 +1065,7 @@
   loadState();
   periodEl.value = state.period;
   updatePeriodPrint();
+  buildSummary();
   render();
 })();
 
@@ -982,8 +1120,8 @@
 
   function newDay() {
     // s/e = service ; aS = départ trajet aller ; rE = retour trajet retour ;
-    // rp = journée non travaillée (repos), cumulée au temps de repos.
-    return { s: "", e: "", aS: "", rE: "", rp: false };
+    // rp = journée non travaillée (repos) ; night = période de nuit.
+    return { s: "", e: "", aS: "", rE: "", rp: false, night: false };
   }
 
   function defaultState() {
@@ -1002,7 +1140,7 @@
             return {
               s: d.s || "", e: d.e || "",
               aS: d.aS || "", rE: d.rE || "",
-              rp: !!d.rp
+              rp: !!d.rp, night: !!d.night
             };
           })
         };
@@ -1018,19 +1156,30 @@
 
   // ---- Dates --------------------------------------------------------------
 
-  // Libellé du jour i : date du premier jour + i, sinon « Jour i+1 ».
+  // Objet Date du jour i (premier jour + i), ou null si pas de date saisie.
+  function dayDateObj(i) {
+    if (!state.firstDate) return null;
+    var d = new Date(state.firstDate + "T00:00:00");
+    if (isNaN(d.getTime())) return null;
+    d.setDate(d.getDate() + i);
+    return d;
+  }
+
+  // Libellé du jour i : « Mardi 02 juin », sinon « Jour i+1 ».
   function dayLabel(i) {
-    if (state.firstDate) {
-      var d = new Date(state.firstDate + "T00:00:00");
-      if (!isNaN(d.getTime())) {
-        d.setDate(d.getDate() + i);
-        var txt = d.toLocaleDateString("fr-FR", {
-          weekday: "long", day: "2-digit", month: "long"
-        });
-        return txt.charAt(0).toUpperCase() + txt.slice(1);
-      }
-    }
-    return "Jour " + (i + 1);
+    var d = dayDateObj(i);
+    if (!d) return "Jour " + (i + 1);
+    var txt = d.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" });
+    return txt.charAt(0).toUpperCase() + txt.slice(1);
+  }
+
+  // Mode nuit : « jour précédent / jour » (ex. lundi -> DI/LU). null si pas de date.
+  var DAY_ABBR = ["DI", "LU", "MA", "ME", "JE", "VE", "SA"]; // index = getDay()
+  function nightPair(i) {
+    var d = dayDateObj(i);
+    if (!d) return null;
+    var g = d.getDay();
+    return DAY_ABBR[(g + 6) % 7] + "/" + DAY_ABBR[g];
   }
 
   // ---- Calcul -------------------------------------------------------------
@@ -1069,8 +1218,11 @@
     return s === null ? null : i * DAY + s;
   }
   function endAbs(i) {
-    var e = dayEnd(state.days[i]);
-    return e === null ? null : i * DAY + e;
+    var st = dayStart(state.days[i]);
+    var en = dayEnd(state.days[i]);
+    if (en === null) return null;
+    // Si la fin est antérieure au début, la journée franchit minuit (+24h).
+    return i * DAY + en + (st !== null && en < st ? DAY : 0);
   }
 
   // Dernier jour travaillé strictement avant l'index i (null si aucun).
@@ -1140,13 +1292,26 @@
     var card = document.createElement("div");
     card.className = "card day-card" + (day.rp ? " rp" : "");
 
-    // En-tête : libellé du jour + case RP + amplitude + suppression.
+    // En-tête : libellé du jour (+ badge nuit) + case RP + amplitude + suppression.
     var head = document.createElement("div");
     head.className = "label-row";
+
+    var nameWrap = document.createElement("div");
+    nameWrap.className = "day-name-wrap";
     var name = document.createElement("span");
     name.className = "name";
     name.textContent = dayLabel(i);
-    head.appendChild(name);
+    nameWrap.appendChild(name);
+    if (day.night && !day.rp) {
+      var pair = nightPair(i);
+      if (pair) {
+        var badge = document.createElement("span");
+        badge.className = "night-badge";
+        badge.textContent = pair;
+        nameWrap.appendChild(badge);
+      }
+    }
+    head.appendChild(nameWrap);
 
     var right = document.createElement("div");
     right.className = "day-head-right";
@@ -1192,6 +1357,27 @@
 
     // Journée non travaillée (RP) : aucune saisie, elle compte en repos.
     if (day.rp) return card;
+
+    // Bascule Jour / Nuit (fixe le seuil de repos : 12h jour, 14h nuit).
+    var dn = document.createElement("label");
+    dn.className = "switch";
+    var dnCb = document.createElement("input");
+    dnCb.type = "checkbox";
+    dnCb.checked = day.night;
+    var track = document.createElement("span");
+    track.className = "track";
+    var swText = document.createElement("span");
+    swText.className = "sw-text";
+    swText.textContent = day.night ? "🌙 Nuit" : "☀️ Jour";
+    dnCb.addEventListener("change", function () {
+      day.night = dnCb.checked;
+      saveState();
+      renderDays(); // met à jour le badge nuit + la couleur du repos
+    });
+    dn.appendChild(dnCb);
+    dn.appendChild(track);
+    dn.appendChild(swText);
+    card.appendChild(dn);
 
     // En-têtes de colonnes : (vide) | Début | Fin.
     var colHead = document.createElement("div");
@@ -1242,14 +1428,33 @@
     compute();
   }
 
+  // Seuil de repos réglementaire selon la période précédente : 12h jour / 14h nuit.
+  function restThreshold(prevDay) {
+    return prevDay.night ? 14 * 60 : 12 * 60;
+  }
+
   // Met à jour l'amplitude de chaque jour et les temps de repos intermédiaires.
   function compute() {
     state.days.forEach(function (day, i) {
       var el = document.getElementById("dayAmp-" + i);
       if (el) el.textContent = dayAmpText(day);
 
-      var rest = document.getElementById("rest-" + i);
-      if (rest) rest.textContent = fmtDuration(restBefore(i + 1));
+      var restVal = document.getElementById("rest-" + i);
+      if (!restVal) return;
+
+      var next = i + 1;                 // jour travaillé qui suit ce compteur
+      var p = prevWorked(next);         // dernier jour travaillé avant lui
+      var rest = restBefore(next);
+      restVal.textContent = fmtDuration(rest);
+
+      // Couleur du compteur : vert si repos suffisant, rouge sinon.
+      // Une journée RP intercalée (p < i) garantit le repos -> reste vert,
+      // le temps ajouté par le RP ne joue pas sur la couleur.
+      var row = restVal.parentNode;
+      row.classList.remove("ok", "bad");
+      if (p === null || rest === null) return;
+      var ok = (p < i) || (rest >= restThreshold(state.days[p]));
+      row.classList.add(ok ? "ok" : "bad");
     });
   }
 
