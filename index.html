@@ -417,8 +417,9 @@
   .date-bar label { font-size: 0.95rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
   .date-bar input[type="date"] { flex: 1 1 auto; padding: 9px 12px; }
 
-  /* Champ date : affiche « Calendrier » tant qu'aucune date n'est saisie
-     (les <input type="date"> ne gèrent pas l'attribut placeholder).
+  /* Champ date : on n'affiche JAMAIS le texte natif (« jj/mm/aaaa » ou la date)
+     — le champ <input type="date"> ne sert qu'au calendrier. On peint par-dessus
+     notre propre libellé (« Calendrier » si vide, la date choisie sinon).
      flex-basis 0 + min-width 0 = le champ occupe toujours toute la largeur
      disponible (sinon, sur mobile, il se réduit à la taille de son contenu). */
   .date-input-wrap { position: relative; flex: 1 1 0%; min-width: 0; }
@@ -426,6 +427,7 @@
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
+    color: transparent;   /* masque le texte natif dans tous les états */
   }
   .date-input-wrap .date-ph {
     position: absolute;
@@ -434,14 +436,14 @@
     top: 50%;
     transform: translateY(-50%);
     pointer-events: none; /* le clic atteint le champ -> ouvre le calendrier */
-    color: var(--accent-dark);
+    color: var(--muted);  /* aspect « placeholder » tant que vide */
     font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .date-input-wrap.filled .date-ph { display: none; }
-  /* Masque le « jj/mm/aaaa » natif tant que le champ est vide. */
-  .date-input-wrap:not(.filled) input[type="date"] { color: transparent; }
+  /* Date saisie : le libellé prend l'aspect d'une valeur. */
+  .date-input-wrap.filled .date-ph { color: var(--accent-dark); }
 
   .day-card { padding: 8px 10px; margin-bottom: 8px; }
   .day-card .label-row {
@@ -1705,12 +1707,24 @@
 
   // ---- Initialisation -----------------------------------------------------
 
-  // Affiche/masque le repère « Calendrier » selon que la date est saisie.
+  // Date « YYYY-MM-DD » -> « 02 juin 2026 » (ou "" si vide/invalide).
+  function fmtDateFr(iso) {
+    if (!iso) return "";
+    var d = new Date(iso + "T00:00:00");
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+  }
+
+  // Met à jour le libellé peint par-dessus le champ date : « Calendrier » tant
+  // qu'aucune date n'est saisie, sinon la date choisie (le texte natif du champ
+  // reste invisible en permanence — voir CSS).
   function syncDatePlaceholder() {
     var wrap = firstDateEl.parentNode;
-    if (wrap && wrap.classList.contains("date-input-wrap")) {
-      wrap.classList.toggle("filled", !!firstDateEl.value);
-    }
+    if (!wrap || !wrap.classList.contains("date-input-wrap")) return;
+    var ph = wrap.querySelector(".date-ph");
+    var iso = firstDateEl.value;
+    wrap.classList.toggle("filled", !!iso);
+    if (ph) ph.textContent = iso ? fmtDateFr(iso) : "Calendrier";
   }
 
   function onDateChanged() {
