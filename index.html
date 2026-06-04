@@ -724,6 +724,43 @@
   .cal-mark.ok { color: var(--ok); }
   .cal-mark.bad { color: var(--bad); }
 
+  /* Case de fin de calendrier : « + » ajoute le jour suivant, « − » supprime le dernier. */
+  .cal-add {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 40px;
+    padding: 2px;
+    border: 1px dashed var(--accent);
+    border-radius: 8px;
+    background: #fff;
+  }
+  .cal-add-btn, .cal-rem-btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 4px;
+  }
+  .cal-add-btn { font-size: 1.2rem; font-weight: 800; color: var(--accent); }
+  .cal-rem-btn { font-size: 1rem; font-weight: 800; color: var(--muted); }
+  .cal-add-btn:active, .cal-rem-btn:active { transform: translateY(1px); }
+
+  /* Résumé compact affiché sous l'en-tête quand le jour est replié. */
+  .day-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 10px;
+    font-size: 0.72rem;
+    color: var(--muted);
+    padding: 4px 2px 0;
+  }
+  .day-summary .ds-item { display: inline-flex; gap: 4px; align-items: baseline; }
+  .day-summary .ds-val { font-weight: 700; color: var(--text); }
+  .day-summary .ds-item.on .ds-val { color: var(--accent); }
+
   /* Surbrillance brève de la carte ciblée depuis le bandeau. */
   .day-card.flash { box-shadow: 0 0 0 3px rgba(140, 42, 82, 0.35); }
 
@@ -924,10 +961,6 @@
     </div>
 
     <div id="days"></div>
-
-    <div class="add-row">
-      <button type="button" class="add-btn" id="addDay">＋ Ajouter un jour</button>
-    </div>
 
     <div class="actions">
       <button type="button" class="btn" id="resetDep">Réinitialiser</button>
@@ -1769,8 +1802,11 @@
     // Journée non travaillée (RP) : aucune saisie, elle compte en repos.
     if (day.rp) return card;
 
-    // Formulaire replié par défaut : on s'arrête à l'en-tête.
-    if (day.collapsed) return card;
+    // Formulaire replié : on s'arrête à l'en-tête + un résumé compact des saisies.
+    if (day.collapsed) {
+      card.appendChild(buildDaySummary(day));
+      return card;
+    }
 
     // Options du jour : bascule Jour/Nuit (la case Coupure est dans la ligne Service).
     var opts = document.createElement("div");
@@ -1843,6 +1879,45 @@
     ));
 
     return card;
+  }
+
+  // Résumé compact des saisies, affiché sous l'en-tête d'un jour replié.
+  // Ordre demandé : Trajet aller, Service début, Coupure, Service fin, Trajet retour.
+  function buildDaySummary(day) {
+    var wrap = document.createElement("div");
+    wrap.className = "day-summary";
+    function item(label, value, on) {
+      var s = document.createElement("span");
+      s.className = "ds-item" + (on ? " on" : "");
+      var l = document.createElement("span");
+      l.className = "ds-lbl";
+      l.textContent = label;
+      var v = document.createElement("span");
+      v.className = "ds-val";
+      v.textContent = value;
+      s.appendChild(l);
+      s.appendChild(v);
+      return s;
+    }
+    wrap.appendChild(item("Aller", day.aS || "—"));
+    wrap.appendChild(item("Début", day.s || "—"));
+    wrap.appendChild(item("Coupure", day.coupure ? "✓" : "—", day.coupure));
+    wrap.appendChild(item("Fin", day.e || "—"));
+    wrap.appendChild(item("Retour", day.rE || "—"));
+    return wrap;
+  }
+
+  // Ajout / retrait de jours (déclenchés depuis la vue calendrier).
+  function addDay() {
+    state.days.push(newDay());
+    saveState();
+    renderDays();
+  }
+  function removeLastDay() {
+    if (state.days.length <= 1) return;
+    state.days.pop();
+    saveState();
+    renderDays();
   }
 
   // Compteur de repos inséré entre deux jours.
@@ -1987,6 +2062,28 @@
 
       calEl.appendChild(cell);
     });
+
+    // Case de contrôle en fin de calendrier (toujours sur le créneau suivant) :
+    // « + » ajoute un jour ; « − » supprime le dernier (si plus d'un jour).
+    var addCell = document.createElement("div");
+    addCell.className = "cal-add";
+    var addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "cal-add-btn";
+    addBtn.textContent = "+";
+    addBtn.setAttribute("aria-label", "Ajouter un jour");
+    addBtn.addEventListener("click", addDay);
+    addCell.appendChild(addBtn);
+    if (state.days.length > 1) {
+      var remBtn = document.createElement("button");
+      remBtn.type = "button";
+      remBtn.className = "cal-rem-btn";
+      remBtn.textContent = "−";
+      remBtn.setAttribute("aria-label", "Supprimer le dernier jour");
+      remBtn.addEventListener("click", removeLastDay);
+      addCell.appendChild(remBtn);
+    }
+    calEl.appendChild(addCell);
   }
 
   // ---- Initialisation -----------------------------------------------------
@@ -2030,12 +2127,6 @@
     if (typeof firstDateEl.showPicker === "function") {
       try { firstDateEl.showPicker(); } catch (e) { /* geste requis : ignoré */ }
     }
-  });
-
-  document.getElementById("addDay").addEventListener("click", function () {
-    state.days.push(newDay());
-    saveState();
-    renderDays();
   });
 
   // Réinitialise tout le simulateur : date effacée et 5 jours vides.
