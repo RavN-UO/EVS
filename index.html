@@ -622,6 +622,58 @@
   .rest-row.bad .rest-label,
   .rest-row.bad .rest-value { color: var(--bad); }
 
+  /* Bouton « Dupliquer le jour précédent » (recopie service + coupure). */
+  .dup-btn {
+    border: 1px dashed var(--accent);
+    background: #fff;
+    color: var(--accent);
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    line-height: 1.2;
+  }
+  .dup-btn:active { transform: translateY(1px); }
+
+  /* Bandeau récap (aperçu « semaine ») : pastilles défilables en lecture seule ;
+     un tap fait défiler jusqu'à la carte du jour. Reconstruit dans compute(). */
+  .overview {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 2px 2px 8px;
+    margin-bottom: 6px;
+  }
+  .overview:empty { display: none; }
+  .ov-pill {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 52px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+    font: inherit;
+  }
+  .ov-pill .ov-day { font-size: 0.7rem; font-weight: 700; color: var(--muted); letter-spacing: 0.02em; }
+  .ov-pill .ov-amp { font-size: 0.8rem; font-weight: 700; color: var(--accent-dark); white-space: nowrap; }
+  .ov-pill.ok { background: var(--ok-bg); border-color: var(--ok); }
+  .ov-pill.ok .ov-amp { color: var(--ok); }
+  .ov-pill.bad { background: var(--bad-bg); border-color: var(--bad); }
+  .ov-pill.bad .ov-amp { color: var(--bad); }
+  .ov-pill.rp { background: var(--rest-bg); border-color: var(--rest); }
+  .ov-pill.rp .ov-amp { color: var(--rest); }
+  .ov-pill:active { transform: translateY(1px); }
+
+  /* Surbrillance brève de la carte ciblée depuis le bandeau. */
+  .day-card.flash { box-shadow: 0 0 0 3px rgba(140, 42, 82, 0.35); }
+
   footer {
     text-align: center;
     color: var(--muted);
@@ -1480,6 +1532,12 @@
   var daysEl = document.getElementById("days");
   var firstDateEl = document.getElementById("firstDate");
 
+  // Bandeau récap (aperçu « semaine »), inséré une fois juste au-dessus des jours.
+  var overviewEl = document.createElement("div");
+  overviewEl.id = "overview";
+  overviewEl.className = "overview";
+  daysEl.parentNode.insertBefore(overviewEl, daysEl);
+
   // Champ horaire compact (input seul, sans label) : formatage auto + pavé num.
   function timeInput(id, value, onInput) {
     var input = document.createElement("input");
@@ -1527,6 +1585,7 @@
   function buildDay(day, i) {
     var card = document.createElement("div");
     card.className = "card day-card" + (day.rp ? " rp" : "");
+    card.id = "dayCard-" + i;   // cible du défilement depuis le bandeau récap
 
     // En-tête : libellé du jour (+ badge nuit) + case RP + amplitude + suppression.
     var head = document.createElement("div");
@@ -1620,6 +1679,26 @@
     dn.appendChild(track);
     dn.appendChild(swText);
     opts.appendChild(dn);
+
+    // « Dupliquer le jour précédent » : recopie les temps de service (début/fin)
+    // et la coupure du dernier jour travaillé. (Jour/Nuit et RP restent propres
+    // à chaque jour via leurs contrôles dédiés.)
+    var prevIdx = prevWorked(i);
+    if (prevIdx !== null) {
+      var dupBtn = document.createElement("button");
+      dupBtn.type = "button";
+      dupBtn.className = "dup-btn";
+      dupBtn.textContent = "⧉ Dupliquer le jour précédent";
+      dupBtn.addEventListener("click", function () {
+        var src = state.days[prevIdx];
+        day.s = src.s;
+        day.e = src.e;
+        day.coupure = src.coupure;
+        saveState();
+        renderDays();
+      });
+      opts.appendChild(dupBtn);
+    }
 
     card.appendChild(opts);
 
@@ -1724,6 +1803,64 @@
       var effective = rest - numRP * DAY;
       var ok = effective >= restThreshold(state.days[p]);
       row.classList.add(ok ? "ok" : "bad");
+    });
+    renderOverview(); // bandeau récap reconstruit avec les valeurs à jour
+  }
+
+  // Statut de repos AVANT le jour travaillé j (même règle que compute()) :
+  // "ok" si suffisant, "bad" sinon, "" si non évaluable (1er jour / incomplet).
+  function restStatusBefore(j) {
+    var p = prevWorked(j);
+    var rest = restBefore(j);
+    if (p === null || rest === null) return "";
+    var numRP = (j - p - 1);                 // journées RP intercalées
+    var effective = rest - numRP * DAY;
+    return effective >= restThreshold(state.days[p]) ? "ok" : "bad";
+  }
+
+  // Libellé court du jour pour le bandeau : « MA 02 », sinon « J3 ».
+  function ovDayLabel(i) {
+    var d = dayDateObj(i);
+    if (!d) return "J" + (i + 1);
+    return DAY_ABBR[d.getDay()] + " " + ("0" + d.getDate()).slice(-2);
+  }
+
+  // (Re)construit le bandeau récap à partir de state.days (lecture seule).
+  // Un tap sur une pastille fait défiler jusqu'à la carte du jour.
+  function renderOverview() {
+    if (!overviewEl) return;
+    overviewEl.innerHTML = "";
+    state.days.forEach(function (day, i) {
+      var pill = document.createElement("button");
+      pill.type = "button";
+      pill.className = "ov-pill";
+
+      var lab = document.createElement("span");
+      lab.className = "ov-day";
+      lab.textContent = ovDayLabel(i);
+      pill.appendChild(lab);
+
+      var info = document.createElement("span");
+      info.className = "ov-amp";
+      if (day.rp) {
+        pill.classList.add("rp");
+        info.textContent = "RP";
+      } else {
+        info.textContent = dayAmpText(day);
+        var st = restStatusBefore(i);
+        if (st) pill.classList.add(st);
+      }
+      pill.appendChild(info);
+
+      pill.addEventListener("click", function () {
+        var card = document.getElementById("dayCard-" + i);
+        if (!card) return;
+        card.scrollIntoView({ behavior: "smooth", block: "center" });
+        card.classList.add("flash");
+        setTimeout(function () { card.classList.remove("flash"); }, 1000);
+      });
+
+      overviewEl.appendChild(pill);
     });
   }
 
