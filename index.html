@@ -448,21 +448,45 @@
   .date-input-wrap.filled .date-ph { color: var(--accent-dark); }
 
   .day-card { padding: 8px 10px; margin-bottom: 8px; }
+  /* En-tête en 3 zones : [date + RP] | [dupliquer centré] | [amplitude + actions]. */
   .day-card .label-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 6px;
     margin-bottom: 6px;
     padding-bottom: 5px;
     border-bottom: 1px solid var(--border);
   }
   .day-card .name { font-size: 0.95rem; color: var(--accent-dark); }
+  /* La date peut être tronquée si l'en-tête manque de place (la date complète
+     reste visible dans la vue calendrier). */
+  .day-card .day-name-wrap .name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .day-dup-center { display: flex; justify-content: center; min-width: 0; }
+  .day-dup-center .dup-btn { font-size: 0.7rem; padding: 3px 8px; white-space: nowrap; }
 
   .day-head-right {
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: flex-end;
+    gap: 10px;
   }
-  /* La croix de suppression est écartée de la case RP pour éviter les clics
-     accidentels (surtout en mode RP, où l'amplitude n'est pas affichée). */
-  .day-head-right .del-btn { margin-left: 6px; padding: 0 6px; }
+  /* Petit bouton de réinitialisation du jour (vide les saisies de la journée). */
+  .reset-day-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.95rem;
+    line-height: 1;
+    padding: 0 2px;
+    opacity: 0.75;
+  }
+  .reset-day-btn:active { transform: translateY(1px); }
   .day-amp {
     font-weight: 700;
     color: #fff;
@@ -588,7 +612,7 @@
   .switch .sw-text { color: var(--text); }
 
   /* Libellé du jour + badge nuit (jour précédent / jour) */
-  .day-name-wrap { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .day-name-wrap { display: flex; align-items: baseline; gap: 8px; flex-wrap: nowrap; min-width: 0; }
   .night-badge {
     font-size: 0.72rem;
     font-weight: 700;
@@ -638,7 +662,6 @@
     line-height: 1.2;
   }
   .dup-btn:active { transform: translateY(1px); }
-  .dup-row { margin: 2px 0 6px; }
 
   /* En-tête de jour repliable (formulaire fermé par défaut). */
   .label-row.collapsible { cursor: pointer; }
@@ -649,40 +672,57 @@
     font-size: 0.8rem;
   }
 
-  /* Bandeau récap (aperçu « semaine ») : pastilles défilables en lecture seule ;
-     un tap fait défiler jusqu'à la carte du jour. Reconstruit dans compute(). */
-  .overview {
-    display: flex;
+  /* Vue calendrier : grille 7 colonnes (lundi -> dimanche). Les jours saisis se
+     placent dans la bonne colonne ; un tap fait défiler jusqu'à la carte du jour.
+     Reconstruite dans compute(). */
+  .cal {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
     gap: 6px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: 2px 2px 8px;
-    margin-bottom: 6px;
+    margin-bottom: 10px;
   }
-  .overview:empty { display: none; }
-  .ov-pill {
-    flex: 0 0 auto;
+  .cal:empty { display: none; }
+  .cal-head {
+    text-align: center;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+  .cal-day {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
-    min-width: 52px;
-    padding: 6px 8px;
+    justify-content: center;
+    gap: 1px;
+    min-height: 40px;
+    padding: 4px 2px;
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 8px;
     background: #fff;
     cursor: pointer;
     font: inherit;
   }
-  .ov-pill .ov-day { font-size: 0.7rem; font-weight: 700; color: var(--muted); letter-spacing: 0.02em; }
-  .ov-pill .ov-amp { font-size: 0.8rem; font-weight: 700; color: var(--accent-dark); white-space: nowrap; }
-  .ov-pill.ok { background: var(--ok-bg); border-color: var(--ok); }
-  .ov-pill.ok .ov-amp { color: var(--ok); }
-  .ov-pill.bad { background: var(--bad-bg); border-color: var(--bad); }
-  .ov-pill.bad .ov-amp { color: var(--bad); }
-  .ov-pill.rp { background: var(--rest-bg); border-color: var(--rest); }
-  .ov-pill.rp .ov-amp { color: var(--rest); }
-  .ov-pill:active { transform: translateY(1px); }
+  .cal-day .cal-num { font-size: 0.72rem; font-weight: 700; color: var(--accent-dark); }
+  .cal-day .cal-amp { font-size: 0.58rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
+  .cal-day.rp { background: var(--rest-bg); border-color: var(--rest); }
+  .cal-day.rp .cal-amp { color: var(--rest); }
+  .cal-day:active { transform: translateY(1px); }
+  /* Repère de repos entre deux jours : flèche verte (OK) / croix rouge (insuffisant). */
+  .cal-mark {
+    position: absolute;
+    left: -7px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8rem;
+    font-weight: 800;
+    line-height: 1;
+    z-index: 1;
+  }
+  .cal-mark.ok { color: var(--ok); }
+  .cal-mark.bad { color: var(--bad); }
 
   /* Surbrillance brève de la carte ciblée depuis le bandeau. */
   .day-card.flash { box-shadow: 0 0 0 3px rgba(140, 42, 82, 0.35); }
@@ -1548,11 +1588,11 @@
   var daysEl = document.getElementById("days");
   var firstDateEl = document.getElementById("firstDate");
 
-  // Bandeau récap (aperçu « semaine »), inséré une fois juste au-dessus des jours.
-  var overviewEl = document.createElement("div");
-  overviewEl.id = "overview";
-  overviewEl.className = "overview";
-  daysEl.parentNode.insertBefore(overviewEl, daysEl);
+  // Vue calendrier, insérée une fois juste au-dessus de la liste des jours.
+  var calEl = document.createElement("div");
+  calEl.id = "calendar";
+  calEl.className = "cal";
+  daysEl.parentNode.insertBefore(calEl, daysEl);
 
   // Champ horaire compact (input seul, sans label) : formatage auto + pavé num.
   function timeInput(id, value, onInput) {
@@ -1648,6 +1688,29 @@
 
     head.appendChild(nameWrap);
 
+    // Bouton « Dupliquer service J-1 » centré dans l'en-tête (entre la case RP et
+    // le compteur d'amplitude) : recopie début/fin de service + coupure du dernier
+    // jour travaillé. Visible même quand le jour est replié.
+    var prevIdx = prevWorked(i);
+    var dupCenter = document.createElement("div");
+    dupCenter.className = "day-dup-center";
+    if (!day.rp && prevIdx !== null) {
+      var dupBtn = document.createElement("button");
+      dupBtn.type = "button";
+      dupBtn.className = "dup-btn";
+      dupBtn.textContent = "⧉ Dupliquer service J-1";
+      dupBtn.addEventListener("click", function () {
+        var src = state.days[prevIdx];
+        day.s = src.s;
+        day.e = src.e;
+        day.coupure = src.coupure;
+        saveState();
+        renderDays();
+      });
+      dupCenter.appendChild(dupBtn);
+    }
+    head.appendChild(dupCenter);
+
     var right = document.createElement("div");
     right.className = "day-head-right";
 
@@ -1658,6 +1721,21 @@
       amp.textContent = dayAmpText(day);
       right.appendChild(amp);
     }
+
+    // Réinitialiser ce jour : vide les saisies (sans supprimer la journée).
+    var resetBtn = document.createElement("button");
+    resetBtn.type = "button";
+    resetBtn.className = "reset-day-btn";
+    resetBtn.textContent = "♻️";
+    resetBtn.setAttribute("aria-label", "Réinitialiser ce jour");
+    resetBtn.addEventListener("click", function () {
+      var d = state.days[i];
+      d.s = ""; d.e = ""; d.aS = ""; d.rE = "";
+      d.rp = false; d.night = false; d.coupure = false;
+      saveState();
+      renderDays();
+    });
+    right.appendChild(resetBtn);
 
     if (state.days.length > 1) {
       var del = document.createElement("button");
@@ -1691,29 +1769,7 @@
     // Journée non travaillée (RP) : aucune saisie, elle compte en repos.
     if (day.rp) return card;
 
-    // « Dupliquer service J-1 » : recopie début/fin de service + coupure du
-    // dernier jour travaillé. Toujours visible, même quand le jour est replié.
-    var prevIdx = prevWorked(i);
-    if (prevIdx !== null) {
-      var dupRow = document.createElement("div");
-      dupRow.className = "dup-row";
-      var dupBtn = document.createElement("button");
-      dupBtn.type = "button";
-      dupBtn.className = "dup-btn";
-      dupBtn.textContent = "⧉ Dupliquer service J-1";
-      dupBtn.addEventListener("click", function () {
-        var src = state.days[prevIdx];
-        day.s = src.s;
-        day.e = src.e;
-        day.coupure = src.coupure;
-        saveState();
-        renderDays();
-      });
-      dupRow.appendChild(dupBtn);
-      card.appendChild(dupRow);
-    }
-
-    // Formulaire replié par défaut : on s'arrête à l'en-tête (+ dupliquer).
+    // Formulaire replié par défaut : on s'arrête à l'en-tête.
     if (day.collapsed) return card;
 
     // Options du jour : bascule Jour/Nuit (la case Coupure est dans la ligne Service).
@@ -1812,9 +1868,10 @@
     daysEl.innerHTML = "";
     state.days.forEach(function (day, i) {
       daysEl.appendChild(buildDay(day, i));
-      // Compteur de repos affiché juste avant un jour travaillé (englobe les RP).
+      // Compteur de repos affiché seulement s'il a une valeur (sinon, rien : on
+      // laisse la place). La valeur englobe d'éventuels jours RP intercalés.
       var next = state.days[i + 1];
-      if (next && !next.rp) daysEl.appendChild(buildRest(i));
+      if (next && !next.rp && restBefore(i + 1) !== null) daysEl.appendChild(buildRest(i));
     });
     compute();
   }
@@ -1854,44 +1911,73 @@
       // vers le jour suivant, ou croix rouge (repos insuffisant).
       if (iconEl) iconEl.textContent = ok ? "↓" : "✕";
     });
-    renderOverview(); // bandeau récap reconstruit avec les valeurs à jour
+    renderCalendar(); // vue calendrier reconstruite avec les valeurs à jour
   }
 
-  // Libellé court du jour pour le bandeau : « MA 02 », sinon « J3 ».
-  function ovDayLabel(i) {
-    var d = dayDateObj(i);
-    if (!d) return "J" + (i + 1);
-    return DAY_ABBR[d.getDay()] + " " + ("0" + d.getDate()).slice(-2);
+  // Libellés des colonnes (lundi -> dimanche) et index lundi=1 .. dimanche=7.
+  var WEEKDAYS = ["Lu", "Ma", "Me", "Je", "Ve", "Sa", "Di"];
+  function mondayIndex(d) { return ((d.getDay() + 6) % 7) + 1; }
+
+  // Statut du repos AVANT le jour travaillé i (même règle que compute()) :
+  // "ok" / "bad" / "" (non évaluable : 1er jour ou horaires incomplets).
+  function restStatusInto(i) {
+    var p = prevWorked(i);
+    if (p === null) return "";
+    var rest = restBefore(i);
+    if (rest === null) return "";
+    var numRP = (i - p - 1);                  // journées RP intercalées
+    var effective = rest - numRP * DAY;
+    return effective >= restThreshold(state.days[p]) ? "ok" : "bad";
   }
 
-  // (Re)construit le bandeau récap à partir de state.days (lecture seule).
-  // Un tap sur une pastille fait défiler jusqu'à la carte du jour.
-  function renderOverview() {
-    if (!overviewEl) return;
-    overviewEl.innerHTML = "";
+  // (Re)construit la vue calendrier (grille 7 colonnes) à partir de state.days.
+  // Chaque jour se place sous le bon jour de semaine ; une flèche verte / croix
+  // rouge marque le repos entre les jours ; un tap fait défiler vers la carte.
+  function renderCalendar() {
+    if (!calEl) return;
+    calEl.innerHTML = "";
+
+    WEEKDAYS.forEach(function (w) {
+      var h = document.createElement("div");
+      h.className = "cal-head";
+      h.textContent = w;
+      calEl.appendChild(h);
+    });
+
     state.days.forEach(function (day, i) {
-      var pill = document.createElement("button");
-      pill.type = "button";
-      pill.className = "ov-pill";
+      var cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "cal-day" + (day.rp ? " rp" : "");
 
-      var lab = document.createElement("span");
-      lab.className = "ov-day";
-      lab.textContent = ovDayLabel(i);
-      pill.appendChild(lab);
+      // Décale la première case sur le bon jour de semaine (les suivantes suivent).
+      if (i === 0) {
+        var d0 = dayDateObj(0);
+        if (d0) cell.style.gridColumnStart = mondayIndex(d0);
+      }
+
+      var num = document.createElement("span");
+      num.className = "cal-num";
+      var dd = dayDateObj(i);
+      num.textContent = dd ? ("0" + dd.getDate()).slice(-2) : ("J" + (i + 1));
+      cell.appendChild(num);
 
       var info = document.createElement("span");
-      info.className = "ov-amp";
-      if (day.rp) {
-        pill.classList.add("rp");
-        info.textContent = "RP";
-      } else {
-        // Le statut de repos (vert/rouge) n'est plus porté par le bandeau :
-        // il est désormais indiqué par la flèche/croix entre les jours.
-        info.textContent = dayAmpText(day);
-      }
-      pill.appendChild(info);
+      info.className = "cal-amp";
+      info.textContent = day.rp ? "RP" : dayAmpText(day);
+      cell.appendChild(info);
 
-      pill.addEventListener("click", function () {
+      // Repère de repos (entre le jour précédent et celui-ci).
+      if (!day.rp) {
+        var st = restStatusInto(i);
+        if (st) {
+          var mark = document.createElement("span");
+          mark.className = "cal-mark " + st;
+          mark.textContent = (st === "ok") ? "→" : "✕";
+          cell.appendChild(mark);
+        }
+      }
+
+      cell.addEventListener("click", function () {
         var card = document.getElementById("dayCard-" + i);
         if (!card) return;
         card.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1899,7 +1985,7 @@
         setTimeout(function () { card.classList.remove("flash"); }, 1000);
       });
 
-      overviewEl.appendChild(pill);
+      calEl.appendChild(cell);
     });
   }
 
