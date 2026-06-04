@@ -1628,16 +1628,21 @@
   }
 
   // Minutes absolues (le jour i démarre à i*DAY) du début/fin d'un jour travaillé.
+  // Service de nuit : les heures saisies sur le jour i couvrent en réalité la
+  // VEILLE au soir -> ce matin (ex. « nuit mercredi » 21h00→05h00 = mardi 21h00
+  // à mercredi 05h00). On recule donc tout le service d'un jour (-DAY).
   function startAbs(i) {
-    var s = dayStart(state.days[i], i);
-    return s === null ? null : i * DAY + s;
+    var day = state.days[i];
+    var s = dayStart(day, i);
+    return s === null ? null : i * DAY + s - (day.night ? DAY : 0);
   }
   function endAbs(i) {
-    var st = dayStart(state.days[i], i);
-    var en = dayEnd(state.days[i]);
+    var day = state.days[i];
+    var st = dayStart(day, i);
+    var en = dayEnd(day);
     if (en === null) return null;
     // Si la fin est antérieure au début, la journée franchit minuit (+24h).
-    return i * DAY + en + (st !== null && en < st ? DAY : 0);
+    return i * DAY + en + (st !== null && en < st ? DAY : 0) - (day.night ? DAY : 0);
   }
 
   // Dernier jour travaillé strictement avant l'index i (null si aucun).
