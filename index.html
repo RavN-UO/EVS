@@ -448,43 +448,43 @@
   .date-input-wrap.filled .date-ph { color: var(--accent-dark); }
 
   .day-card { padding: 8px 10px; margin-bottom: 8px; }
-  /* En-tête en 3 zones : [date + RP] | [dupliquer centré] | [amplitude + actions]. */
+  /* En-tête : [switch Jour/Nuit + date + RP]  ....  [amplitude + reset]. */
   .day-card .label-row {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     margin-bottom: 6px;
     padding-bottom: 5px;
     border-bottom: 1px solid var(--border);
   }
+  .day-head-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .day-switch { font-size: 0.9rem; flex: 0 0 auto; }
   .day-card .name { font-size: 0.95rem; color: var(--accent-dark); }
-  /* La date peut être tronquée si l'en-tête manque de place (la date complète
-     reste visible dans la vue calendrier). */
   .day-card .day-name-wrap .name {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .day-dup-center { display: flex; justify-content: center; min-width: 0; }
-  .day-dup-center .dup-btn { font-size: 0.7rem; padding: 3px 8px; white-space: nowrap; }
 
   .day-head-right {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 10px;
+    gap: 8px;
+    flex: 0 0 auto;
   }
-  /* Petit bouton de réinitialisation du jour (vide les saisies de la journée). */
+  /* Réinitialisation du jour : flèche qui tourne, discrète (ne ressort pas). */
   .reset-day-btn {
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 0.95rem;
+    font-size: 1.05rem;
     line-height: 1;
     padding: 0 2px;
-    opacity: 0.75;
+    color: var(--muted);
+    opacity: 0.6;
   }
   .reset-day-btn:active { transform: translateY(1px); }
   .day-amp {
@@ -496,40 +496,52 @@
     border-radius: 999px;
   }
 
-  .seg-head,
-  .seg-row {
+  /* Ligne éditable : Aller | Début | Coupure | Fin | Retour (clic = saisie).
+     Cellules en colonne (valeur au-dessus, libellé en dessous), ~2 lignes de
+     haut pour des cibles tactiles confortables. */
+  .day-edit {
     display: grid;
-    grid-template-columns: 80px 1fr 56px 1fr;
-    gap: 6px;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+    align-items: stretch;
+    margin-top: 6px;
+  }
+  .de-cell {
+    display: flex;
+    flex-direction: column;
     align-items: center;
+    justify-content: space-between;
+    gap: 3px;
+    min-height: 46px;
   }
-  .seg-head { margin-bottom: 3px; }
-  .seg-head span {
-    font-size: 0.7rem;
-    color: var(--muted);
+  .de-input {
+    width: 100%;
     text-align: center;
+    font-size: 0.95rem;
+    font-weight: 700;
+    padding: 7px 2px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--accent-dark);
+    -webkit-appearance: none;
+    appearance: none;
   }
-  .seg-row { margin-bottom: 4px; padding: 2px 5px; border-radius: 7px; }
-  .seg-row:last-child { margin-bottom: 0; }
-  .seg-row .seg-label { font-size: 0.8rem; font-weight: 600; }
-  .seg-row.aller .seg-label,
-  .seg-row.retour .seg-label { color: var(--muted); }
-  .seg-row.service { background: #f3e6ec; }
-  .seg-row.service .seg-label { color: var(--accent-dark); }
+  .de-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(140, 42, 82, 0.18);
+  }
+  .de-lbl {
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
 
-  /* Cases horaires resserrées */
-  .time-cell {
-    padding: 7px 5px;
-    font-size: 0.98rem;
-    text-align: center;
-  }
-  /* Colonne implicite (= heure de service) */
-  .seg-implied {
-    font-size: 0.72rem;
-    font-style: italic;
-    color: var(--muted);
-    text-align: center;
-  }
+  /* Ligne d'actions sous les saisies : Service J-1 / Trajet J-1. */
+  .day-actions { display: flex; gap: 8px; margin-top: 8px; }
+  .day-actions .dup-btn { flex: 1 1 auto; text-align: center; }
 
   /* Case RP (journée non travaillée) */
   .rp-toggle {
@@ -544,37 +556,8 @@
   .rp-toggle input { width: 16px; height: 16px; accent-color: var(--rest); }
   .day-card.rp { background: var(--rest-bg); border-color: var(--rest); }
 
-  /* Options du jour : bascule Jour / Nuit (la Coupure est dans la ligne Service) */
-  .day-opts {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 14px;
-    margin: 6px 0 10px;
-  }
-  .coupure-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: var(--muted);
-    cursor: pointer;
-  }
-  .coupure-toggle input { width: 16px; height: 16px; accent-color: var(--accent); }
-
-  /* Coupure placée au centre de la ligne Service : libellé « Coupure » au-dessus
-     de la case à cocher, le tout centré entre le début et la fin de service. */
-  .coupure-toggle.coupure-center {
-    flex-direction: column;
-    gap: 2px;
-    justify-self: center;
-    text-align: center;
-    font-size: 0.7rem;
-    line-height: 1.05;
-    color: var(--accent-dark);
-  }
-  .coupure-toggle.coupure-center input { margin: 0; }
+  /* Coupure (cellule de la ligne éditable) : switch compact + libellé « Coupure ». */
+  .coupure-switch { flex: 0 0 auto; }
 
   /* Bascule Jour / Nuit */
   .switch {
@@ -663,15 +646,6 @@
   }
   .dup-btn:active { transform: translateY(1px); }
 
-  /* En-tête de jour repliable (formulaire fermé par défaut). */
-  .label-row.collapsible { cursor: pointer; }
-  .day-chevron {
-    display: inline-block;
-    width: 0.9em;
-    color: var(--muted);
-    font-size: 0.8rem;
-  }
-
   /* Vue calendrier : grille 7 colonnes (lundi -> dimanche). Les jours saisis se
      placent dans la bonne colonne ; un tap fait défiler jusqu'à la carte du jour.
      Reconstruite dans compute(). */
@@ -679,7 +653,7 @@
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     gap: 6px;
-    margin-bottom: 10px;
+    margin-bottom: 16px;
   }
   .cal:empty { display: none; }
   .cal-head {
@@ -737,29 +711,37 @@
     border-radius: 8px;
     background: #fff;
   }
-  .cal-add-btn, .cal-rem-btn {
+  .cal-add-btn {
     border: none;
     background: none;
     cursor: pointer;
     line-height: 1;
     padding: 0 4px;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--accent);
   }
-  .cal-add-btn { font-size: 1.2rem; font-weight: 800; color: var(--accent); }
-  .cal-rem-btn { font-size: 1rem; font-weight: 800; color: var(--muted); }
-  .cal-add-btn:active, .cal-rem-btn:active { transform: translateY(1px); }
-
-  /* Résumé compact affiché sous l'en-tête quand le jour est replié. */
-  .day-summary {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 3px 10px;
-    font-size: 0.72rem;
+  .cal-add-btn:active { transform: translateY(1px); }
+  /* « − » sous la dernière case du calendrier : supprime le dernier jour. */
+  .cal-rem {
+    position: absolute;
+    bottom: -9px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: #fff;
     color: var(--muted);
-    padding: 4px 2px 0;
+    font-size: 0.85rem;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 2;
   }
-  .day-summary .ds-item { display: inline-flex; gap: 4px; align-items: baseline; }
-  .day-summary .ds-val { font-weight: 700; color: var(--text); }
-  .day-summary .ds-item.on .ds-val { color: var(--accent); }
+  .cal-rem:active { transform: translateX(-50%) translateY(1px); }
 
   /* Surbrillance brève de la carte ciblée depuis le bandeau. */
   .day-card.flash { box-shadow: 0 0 0 3px rgba(140, 42, 82, 0.35); }
@@ -1487,9 +1469,8 @@
 
   function newDay() {
     // s/e = service ; aS = départ aller ; rE = retour ; rp = repos ;
-    // night = période de nuit ; coupure = déduit 1h de l'amplitude du jour ;
-    // collapsed = formulaire replié (fermé par défaut, pour la lisibilité).
-    return { s: "", e: "", aS: "", rE: "", rp: false, night: false, coupure: false, collapsed: true };
+    // night = période de nuit ; coupure = déduit 1h de l'amplitude du jour.
+    return { s: "", e: "", aS: "", rE: "", rp: false, night: false, coupure: false };
   }
 
   function defaultState() {
@@ -1508,9 +1489,7 @@
             return {
               s: d.s || "", e: d.e || "",
               aS: d.aS || "", rE: d.rE || "",
-              rp: !!d.rp, night: !!d.night, coupure: !!d.coupure,
-              // Données v1 sans le champ : repliées par défaut.
-              collapsed: (d.collapsed === undefined ? true : !!d.collapsed)
+              rp: !!d.rp, night: !!d.night, coupure: !!d.coupure
             };
           })
         };
@@ -1627,50 +1606,6 @@
   calEl.className = "cal";
   daysEl.parentNode.insertBefore(calEl, daysEl);
 
-  // Champ horaire compact (input seul, sans label) : formatage auto + pavé num.
-  function timeInput(id, value, onInput) {
-    var input = document.createElement("input");
-    input.type = "text";
-    input.inputMode = "numeric";
-    input.className = "field-input time-cell";
-    input.id = id;
-    input.maxLength = 5;
-    input.placeholder = "00h00";
-    input.value = value || "";
-    input.addEventListener("input", function () {
-      input.value = formatTime(input.value);
-      onInput(input.value);
-    });
-    return input;
-  }
-
-  // Cellule vide (la colonne reste alignée, sans texte).
-  function impliedCell() {
-    var s = document.createElement("span");
-    s.className = "seg-implied";
-    return s;
-  }
-
-  // Cellule centrale vide (réserve la place de la Coupure sur les autres lignes).
-  function centerCell() {
-    return document.createElement("span");
-  }
-
-  // Une ligne « libellé | col Début | col centre | col Fin »
-  // (chaque cellule = input, repère ou case Coupure).
-  function segRow(labelText, cls, startCell, midCell, endCell) {
-    var row = document.createElement("div");
-    row.className = "seg-row " + cls;
-    var lab = document.createElement("span");
-    lab.className = "seg-label";
-    lab.textContent = labelText;
-    row.appendChild(lab);
-    row.appendChild(startCell);
-    row.appendChild(midCell);
-    row.appendChild(endCell);
-    return row;
-  }
-
   function buildDay(day, i) {
     var card = document.createElement("div");
     card.className = "card day-card" + (day.rp ? " rp" : "");
@@ -1680,15 +1615,34 @@
     var head = document.createElement("div");
     head.className = "label-row";
 
+    var left = document.createElement("div");
+    left.className = "day-head-left";
+
+    // Switch Jour / Nuit à GAUCHE de la date (jours travaillés uniquement).
+    if (!day.rp) {
+      var dn = document.createElement("label");
+      dn.className = "switch day-switch";
+      var dnCb = document.createElement("input");
+      dnCb.type = "checkbox";
+      dnCb.checked = day.night;
+      var dnTrack = document.createElement("span");
+      dnTrack.className = "track";
+      var dnText = document.createElement("span");
+      dnText.className = "sw-text";
+      dnText.textContent = day.night ? "🌙" : "☀️";
+      dnCb.addEventListener("change", function () {
+        day.night = dnCb.checked;
+        saveState();
+        renderDays(); // met à jour le badge nuit + le repos
+      });
+      dn.appendChild(dnCb);
+      dn.appendChild(dnTrack);
+      dn.appendChild(dnText);
+      left.appendChild(dn);
+    }
+
     var nameWrap = document.createElement("div");
     nameWrap.className = "day-name-wrap";
-    // Chevron indiquant l'état replié/déplié (pas sur un jour RP, qui n'a pas de formulaire).
-    if (!day.rp) {
-      var chev = document.createElement("span");
-      chev.className = "day-chevron";
-      chev.textContent = day.collapsed ? "▸" : "▾";
-      nameWrap.appendChild(chev);
-    }
     var name = document.createElement("span");
     name.className = "name";
     name.textContent = dayLabel(i);
@@ -1703,8 +1657,7 @@
       }
     }
 
-    // Case « RP » (journée non travaillée), juste à droite de la date
-    // (et de la mention LU/MA quand elle est présente).
+    // Case « RP » (journée non travaillée), à droite de la date.
     var rpLbl = document.createElement("label");
     rpLbl.className = "rp-toggle";
     var rpCb = document.createElement("input");
@@ -1719,30 +1672,8 @@
     rpLbl.appendChild(document.createTextNode(" RP"));
     nameWrap.appendChild(rpLbl);
 
-    head.appendChild(nameWrap);
-
-    // Bouton « Dupliquer service J-1 » centré dans l'en-tête (entre la case RP et
-    // le compteur d'amplitude) : recopie début/fin de service + coupure du dernier
-    // jour travaillé. Visible même quand le jour est replié.
-    var prevIdx = prevWorked(i);
-    var dupCenter = document.createElement("div");
-    dupCenter.className = "day-dup-center";
-    if (!day.rp && prevIdx !== null) {
-      var dupBtn = document.createElement("button");
-      dupBtn.type = "button";
-      dupBtn.className = "dup-btn";
-      dupBtn.textContent = "⧉ Dupliquer service J-1";
-      dupBtn.addEventListener("click", function () {
-        var src = state.days[prevIdx];
-        day.s = src.s;
-        day.e = src.e;
-        day.coupure = src.coupure;
-        saveState();
-        renderDays();
-      });
-      dupCenter.appendChild(dupBtn);
-    }
-    head.appendChild(dupCenter);
+    left.appendChild(nameWrap);
+    head.appendChild(left);
 
     var right = document.createElement("div");
     right.className = "day-head-right";
@@ -1755,11 +1686,11 @@
       right.appendChild(amp);
     }
 
-    // Réinitialiser ce jour : vide les saisies (sans supprimer la journée).
+    // Réinitialiser ce jour : vide les saisies (flèche qui tourne, discrète).
     var resetBtn = document.createElement("button");
     resetBtn.type = "button";
     resetBtn.className = "reset-day-btn";
-    resetBtn.textContent = "♻️";
+    resetBtn.textContent = "↻";
     resetBtn.setAttribute("aria-label", "Réinitialiser ce jour");
     resetBtn.addEventListener("click", function () {
       var d = state.days[i];
@@ -1770,141 +1701,111 @@
     });
     right.appendChild(resetBtn);
 
-    if (state.days.length > 1) {
-      var del = document.createElement("button");
-      del.type = "button";
-      del.className = "del-btn";
-      del.textContent = "✕";
-      del.setAttribute("aria-label", "Supprimer ce jour");
-      del.addEventListener("click", function () {
-        state.days.splice(i, 1);
-        saveState();
-        renderDays();
-      });
-      right.appendChild(del);
-    }
     head.appendChild(right);
-
-    // En-tête cliquable : déplie / replie le formulaire du jour. Les clics sur un
-    // contrôle (case RP, bouton dupliquer, suppression) ne replient pas la carte.
-    if (!day.rp) {
-      head.classList.add("collapsible");
-      head.addEventListener("click", function (e) {
-        if (e.target.closest("input, button, label")) return;
-        day.collapsed = !day.collapsed;
-        saveState();
-        renderDays();
-      });
-    }
-
     card.appendChild(head);
 
     // Journée non travaillée (RP) : aucune saisie, elle compte en repos.
     if (day.rp) return card;
 
-    // Formulaire replié : on s'arrête à l'en-tête + un résumé compact des saisies.
-    if (day.collapsed) {
-      card.appendChild(buildDaySummary(day));
-      return card;
+    // Ligne éditable : Aller, Début, Coupure, Fin, Retour (clic = saisie).
+    card.appendChild(buildDayEdit(day, i));
+
+    // Ligne d'actions : duplique le service ou les trajets du jour précédent.
+    var prevIdx = prevWorked(i);
+    if (prevIdx !== null) {
+      var actions = document.createElement("div");
+      actions.className = "day-actions";
+
+      var svcBtn = document.createElement("button");
+      svcBtn.type = "button";
+      svcBtn.className = "dup-btn";
+      svcBtn.textContent = "⧉ Service J-1";
+      svcBtn.addEventListener("click", function () {
+        var src = state.days[prevIdx];
+        day.s = src.s; day.e = src.e; day.coupure = src.coupure;
+        saveState();
+        renderDays();
+      });
+      actions.appendChild(svcBtn);
+
+      var trajBtn = document.createElement("button");
+      trajBtn.type = "button";
+      trajBtn.className = "dup-btn";
+      trajBtn.textContent = "⧉ Trajet J-1";
+      trajBtn.addEventListener("click", function () {
+        var src = state.days[prevIdx];
+        day.aS = src.aS; day.rE = src.rE;
+        saveState();
+        renderDays();
+      });
+      actions.appendChild(trajBtn);
+
+      card.appendChild(actions);
     }
 
-    // Options du jour : bascule Jour/Nuit (la case Coupure est dans la ligne Service).
-    var opts = document.createElement("div");
-    opts.className = "day-opts";
+    return card;
+  }
 
-    // Bascule Jour / Nuit (fixe le seuil de repos : 12h jour, 14h nuit).
-    var dn = document.createElement("label");
-    dn.className = "switch";
-    var dnCb = document.createElement("input");
-    dnCb.type = "checkbox";
-    dnCb.checked = day.night;
-    var track = document.createElement("span");
-    track.className = "track";
-    var swText = document.createElement("span");
-    swText.className = "sw-text";
-    swText.textContent = day.night ? "🌙 Nuit" : "☀️ Jour";
-    dnCb.addEventListener("change", function () {
-      day.night = dnCb.checked;
-      saveState();
-      renderDays(); // met à jour le badge nuit + la couleur du repos
-    });
-    dn.appendChild(dnCb);
-    dn.appendChild(track);
-    dn.appendChild(swText);
-    opts.appendChild(dn);
+  // Ligne éditable des saisies (Aller, Début, Coupure, Fin, Retour). On clique
+  // sur la valeur pour la saisir ; la coupure est un switch (libellé en dessous).
+  function buildDayEdit(day, i) {
+    var row = document.createElement("div");
+    row.className = "day-edit";
 
-    card.appendChild(opts);
+    function timeCell(label, id, value, onInput) {
+      var cell = document.createElement("div");
+      cell.className = "de-cell";
+      var input = document.createElement("input");
+      input.type = "text";
+      input.inputMode = "numeric";
+      input.className = "de-input";
+      input.id = id;
+      input.maxLength = 5;
+      input.placeholder = "00h00";
+      input.value = value || "";
+      input.addEventListener("input", function () {
+        input.value = formatTime(input.value);
+        onInput(input.value);
+      });
+      var lab = document.createElement("span");
+      lab.className = "de-lbl";
+      lab.textContent = label;
+      cell.appendChild(input);
+      cell.appendChild(lab);
+      return cell;
+    }
 
-    // Case « Coupure » (déduit 1h de l'amplitude) : placée au centre de la
-    // ligne Service, entre le début et la fin de service. Libellé « Coupure »
-    // au-dessus de la case à cocher.
-    var coupureCell = document.createElement("label");
-    coupureCell.className = "coupure-toggle coupure-center";
-    var cpText = document.createElement("span");
-    cpText.className = "cp-text";
-    cpText.textContent = "Coupure";
+    row.appendChild(timeCell("Aller", "aller-" + i, day.aS, function (v) { day.aS = v; saveState(); compute(); }));
+    row.appendChild(timeCell("Début", "svc-" + i + "-s", day.s, function (v) { day.s = v; saveState(); compute(); }));
+
+    // Coupure : switch + libellé « Coupure » en dessous.
+    var cp = document.createElement("div");
+    cp.className = "de-cell de-coupure";
+    var cpSwitch = document.createElement("label");
+    cpSwitch.className = "switch coupure-switch";
     var cpCb = document.createElement("input");
     cpCb.type = "checkbox";
     cpCb.checked = day.coupure;
+    var cpTrack = document.createElement("span");
+    cpTrack.className = "track";
     cpCb.addEventListener("change", function () {
       day.coupure = cpCb.checked;
       saveState();
       compute();
     });
-    coupureCell.appendChild(cpText);
-    coupureCell.appendChild(cpCb);
+    cpSwitch.appendChild(cpCb);
+    cpSwitch.appendChild(cpTrack);
+    var cpLbl = document.createElement("span");
+    cpLbl.className = "de-lbl";
+    cpLbl.textContent = "Coupure";
+    cp.appendChild(cpSwitch);
+    cp.appendChild(cpLbl);
+    row.appendChild(cp);
 
-    // En-têtes de colonnes : (vide) | Début | (centre vide) | Fin.
-    var colHead = document.createElement("div");
-    colHead.className = "seg-head";
-    colHead.innerHTML = "<span></span><span>Début</span><span></span><span>Fin</span>";
-    card.appendChild(colHead);
+    row.appendChild(timeCell("Fin", "svc-" + i + "-e", day.e, function (v) { day.e = v; saveState(); compute(); }));
+    row.appendChild(timeCell("Retour", "retour-" + i, day.rE, function (v) { day.rE = v; saveState(); compute(); }));
 
-    // Ordre demandé : Trajet aller (Début seul), Service (Coupure au centre),
-    // Trajet retour (Fin seule).
-    card.appendChild(segRow("Trajet aller", "aller",
-      timeInput("aller-" + i + "-s", day.aS, function (v) { day.aS = v; saveState(); compute(); }),
-      centerCell(),
-      impliedCell()
-    ));
-    card.appendChild(segRow("Service", "service",
-      timeInput("svc-" + i + "-s", day.s, function (v) { day.s = v; saveState(); compute(); }),
-      coupureCell,
-      timeInput("svc-" + i + "-e", day.e, function (v) { day.e = v; saveState(); compute(); })
-    ));
-    card.appendChild(segRow("Trajet retour", "retour",
-      impliedCell(),
-      centerCell(),
-      timeInput("retour-" + i + "-e", day.rE, function (v) { day.rE = v; saveState(); compute(); })
-    ));
-
-    return card;
-  }
-
-  // Résumé compact des saisies, affiché sous l'en-tête d'un jour replié.
-  // Ordre demandé : Trajet aller, Service début, Coupure, Service fin, Trajet retour.
-  function buildDaySummary(day) {
-    var wrap = document.createElement("div");
-    wrap.className = "day-summary";
-    function item(label, value, on) {
-      var s = document.createElement("span");
-      s.className = "ds-item" + (on ? " on" : "");
-      var l = document.createElement("span");
-      l.className = "ds-lbl";
-      l.textContent = label;
-      var v = document.createElement("span");
-      v.className = "ds-val";
-      v.textContent = value;
-      s.appendChild(l);
-      s.appendChild(v);
-      return s;
-    }
-    wrap.appendChild(item("Aller", day.aS || "—"));
-    wrap.appendChild(item("Début", day.s || "—"));
-    wrap.appendChild(item("Coupure", day.coupure ? "✓" : "—", day.coupure));
-    wrap.appendChild(item("Fin", day.e || "—"));
-    wrap.appendChild(item("Retour", day.rE || "—"));
-    return wrap;
+    return row;
   }
 
   // Ajout / retrait de jours (déclenchés depuis la vue calendrier).
@@ -2052,6 +1953,20 @@
         }
       }
 
+      // « − » sous la case du dernier jour : supprime ce dernier jour.
+      if (i === state.days.length - 1 && state.days.length > 1) {
+        var rem = document.createElement("button");
+        rem.type = "button";
+        rem.className = "cal-rem";
+        rem.textContent = "−";
+        rem.setAttribute("aria-label", "Supprimer le dernier jour");
+        rem.addEventListener("click", function (e) {
+          e.stopPropagation();
+          removeLastDay();
+        });
+        cell.appendChild(rem);
+      }
+
       cell.addEventListener("click", function () {
         var card = document.getElementById("dayCard-" + i);
         if (!card) return;
@@ -2074,15 +1989,6 @@
     addBtn.setAttribute("aria-label", "Ajouter un jour");
     addBtn.addEventListener("click", addDay);
     addCell.appendChild(addBtn);
-    if (state.days.length > 1) {
-      var remBtn = document.createElement("button");
-      remBtn.type = "button";
-      remBtn.className = "cal-rem-btn";
-      remBtn.textContent = "−";
-      remBtn.setAttribute("aria-label", "Supprimer le dernier jour");
-      remBtn.addEventListener("click", removeLastDay);
-      addCell.appendChild(remBtn);
-    }
     calEl.appendChild(addCell);
   }
 
