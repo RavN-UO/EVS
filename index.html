@@ -615,14 +615,17 @@
   }
   .rest-row .rest-label { color: #767b85; font-weight: 600; }
   .rest-row .rest-value { color: #767b85; font-weight: 700; }
+  .rest-row .rest-icon { font-weight: 800; font-size: 1.05rem; line-height: 1; color: #767b85; }
   .rest-row.ok { background: var(--ok-bg); border-color: var(--ok); }
   .rest-row.ok .rest-label,
-  .rest-row.ok .rest-value { color: var(--ok); }
+  .rest-row.ok .rest-value,
+  .rest-row.ok .rest-icon { color: var(--ok); }
   .rest-row.bad { background: var(--bad-bg); border-color: var(--bad); }
   .rest-row.bad .rest-label,
-  .rest-row.bad .rest-value { color: var(--bad); }
+  .rest-row.bad .rest-value,
+  .rest-row.bad .rest-icon { color: var(--bad); }
 
-  /* Bouton « Dupliquer le jour précédent » (recopie service + coupure). */
+  /* Bouton « Dupliquer service J-1 » (recopie service + coupure). */
   .dup-btn {
     border: 1px dashed var(--accent);
     background: #fff;
@@ -635,6 +638,16 @@
     line-height: 1.2;
   }
   .dup-btn:active { transform: translateY(1px); }
+  .dup-row { margin: 2px 0 6px; }
+
+  /* En-tête de jour repliable (formulaire fermé par défaut). */
+  .label-row.collapsible { cursor: pointer; }
+  .day-chevron {
+    display: inline-block;
+    width: 0.9em;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
 
   /* Bandeau récap (aperçu « semaine ») : pastilles défilables en lecture seule ;
      un tap fait défiler jusqu'à la carte du jour. Reconstruit dans compute(). */
@@ -1401,8 +1414,9 @@
 
   function newDay() {
     // s/e = service ; aS = départ aller ; rE = retour ; rp = repos ;
-    // night = période de nuit ; coupure = déduit 1h de l'amplitude du jour.
-    return { s: "", e: "", aS: "", rE: "", rp: false, night: false, coupure: false };
+    // night = période de nuit ; coupure = déduit 1h de l'amplitude du jour ;
+    // collapsed = formulaire replié (fermé par défaut, pour la lisibilité).
+    return { s: "", e: "", aS: "", rE: "", rp: false, night: false, coupure: false, collapsed: true };
   }
 
   function defaultState() {
@@ -1421,7 +1435,9 @@
             return {
               s: d.s || "", e: d.e || "",
               aS: d.aS || "", rE: d.rE || "",
-              rp: !!d.rp, night: !!d.night, coupure: !!d.coupure
+              rp: !!d.rp, night: !!d.night, coupure: !!d.coupure,
+              // Données v1 sans le champ : repliées par défaut.
+              collapsed: (d.collapsed === undefined ? true : !!d.collapsed)
             };
           })
         };
@@ -1593,6 +1609,13 @@
 
     var nameWrap = document.createElement("div");
     nameWrap.className = "day-name-wrap";
+    // Chevron indiquant l'état replié/déplié (pas sur un jour RP, qui n'a pas de formulaire).
+    if (!day.rp) {
+      var chev = document.createElement("span");
+      chev.className = "day-chevron";
+      chev.textContent = day.collapsed ? "▸" : "▾";
+      nameWrap.appendChild(chev);
+    }
     var name = document.createElement("span");
     name.className = "name";
     name.textContent = dayLabel(i);
@@ -1650,10 +1673,48 @@
       right.appendChild(del);
     }
     head.appendChild(right);
+
+    // En-tête cliquable : déplie / replie le formulaire du jour. Les clics sur un
+    // contrôle (case RP, bouton dupliquer, suppression) ne replient pas la carte.
+    if (!day.rp) {
+      head.classList.add("collapsible");
+      head.addEventListener("click", function (e) {
+        if (e.target.closest("input, button, label")) return;
+        day.collapsed = !day.collapsed;
+        saveState();
+        renderDays();
+      });
+    }
+
     card.appendChild(head);
 
     // Journée non travaillée (RP) : aucune saisie, elle compte en repos.
     if (day.rp) return card;
+
+    // « Dupliquer service J-1 » : recopie début/fin de service + coupure du
+    // dernier jour travaillé. Toujours visible, même quand le jour est replié.
+    var prevIdx = prevWorked(i);
+    if (prevIdx !== null) {
+      var dupRow = document.createElement("div");
+      dupRow.className = "dup-row";
+      var dupBtn = document.createElement("button");
+      dupBtn.type = "button";
+      dupBtn.className = "dup-btn";
+      dupBtn.textContent = "⧉ Dupliquer service J-1";
+      dupBtn.addEventListener("click", function () {
+        var src = state.days[prevIdx];
+        day.s = src.s;
+        day.e = src.e;
+        day.coupure = src.coupure;
+        saveState();
+        renderDays();
+      });
+      dupRow.appendChild(dupBtn);
+      card.appendChild(dupRow);
+    }
+
+    // Formulaire replié par défaut : on s'arrête à l'en-tête (+ dupliquer).
+    if (day.collapsed) return card;
 
     // Options du jour : bascule Jour/Nuit (la case Coupure est dans la ligne Service).
     var opts = document.createElement("div");
@@ -1679,26 +1740,6 @@
     dn.appendChild(track);
     dn.appendChild(swText);
     opts.appendChild(dn);
-
-    // « Dupliquer le jour précédent » : recopie les temps de service (début/fin)
-    // et la coupure du dernier jour travaillé. (Jour/Nuit et RP restent propres
-    // à chaque jour via leurs contrôles dédiés.)
-    var prevIdx = prevWorked(i);
-    if (prevIdx !== null) {
-      var dupBtn = document.createElement("button");
-      dupBtn.type = "button";
-      dupBtn.className = "dup-btn";
-      dupBtn.textContent = "⧉ Dupliquer le jour précédent";
-      dupBtn.addEventListener("click", function () {
-        var src = state.days[prevIdx];
-        day.s = src.s;
-        day.e = src.e;
-        day.coupure = src.coupure;
-        saveState();
-        renderDays();
-      });
-      opts.appendChild(dupBtn);
-    }
 
     card.appendChild(opts);
 
@@ -1752,12 +1793,16 @@
   function buildRest(i) {
     var row = document.createElement("div");
     row.className = "rest-row";
+    var icon = document.createElement("span");
+    icon.className = "rest-icon";
+    icon.id = "rest-icon-" + i;
     var lab = document.createElement("span");
     lab.className = "rest-label";
     lab.textContent = "Temps de repos";
     var val = document.createElement("span");
     val.className = "rest-value";
     val.id = "rest-" + i;
+    row.appendChild(icon);
     row.appendChild(lab);
     row.appendChild(val);
     return row;
@@ -1797,25 +1842,19 @@
       // d'éventuelles journées RP (chacune +24h) est INDICATIF et retiré du
       // calcul de la couleur (on évalue le repos « comme si » jours consécutifs).
       var row = restVal.parentNode;
+      var iconEl = document.getElementById("rest-icon-" + i);
       row.classList.remove("ok", "bad");
+      if (iconEl) iconEl.textContent = "";
       if (p === null || rest === null) return;
       var numRP = i - p;                       // journées RP intercalées
       var effective = rest - numRP * DAY;
       var ok = effective >= restThreshold(state.days[p]);
       row.classList.add(ok ? "ok" : "bad");
+      // Repère entre les deux jours : flèche verte (repos suffisant) dirigée
+      // vers le jour suivant, ou croix rouge (repos insuffisant).
+      if (iconEl) iconEl.textContent = ok ? "↓" : "✕";
     });
     renderOverview(); // bandeau récap reconstruit avec les valeurs à jour
-  }
-
-  // Statut de repos AVANT le jour travaillé j (même règle que compute()) :
-  // "ok" si suffisant, "bad" sinon, "" si non évaluable (1er jour / incomplet).
-  function restStatusBefore(j) {
-    var p = prevWorked(j);
-    var rest = restBefore(j);
-    if (p === null || rest === null) return "";
-    var numRP = (j - p - 1);                 // journées RP intercalées
-    var effective = rest - numRP * DAY;
-    return effective >= restThreshold(state.days[p]) ? "ok" : "bad";
   }
 
   // Libellé court du jour pour le bandeau : « MA 02 », sinon « J3 ».
@@ -1846,9 +1885,9 @@
         pill.classList.add("rp");
         info.textContent = "RP";
       } else {
+        // Le statut de repos (vert/rouge) n'est plus porté par le bandeau :
+        // il est désormais indiqué par la flèche/croix entre les jours.
         info.textContent = dayAmpText(day);
-        var st = restStatusBefore(i);
-        if (st) pill.classList.add(st);
       }
       pill.appendChild(info);
 
