@@ -511,17 +511,17 @@
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    gap: 3px;
-    min-height: 46px;
+    gap: 2px;
+    min-height: 38px;
   }
   .de-input {
     width: 100%;
     text-align: center;
-    font-size: 0.95rem;
+    font-size: 0.82rem;
     font-weight: 700;
-    padding: 7px 2px;
+    padding: 4px 2px;
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 7px;
     background: #fff;
     color: var(--accent-dark);
     -webkit-appearance: none;
@@ -533,7 +533,7 @@
     box-shadow: 0 0 0 2px rgba(140, 42, 82, 0.18);
   }
   .de-lbl {
-    font-size: 0.6rem;
+    font-size: 0.56rem;
     color: var(--muted);
     text-transform: uppercase;
     letter-spacing: 0.02em;
@@ -558,6 +558,9 @@
 
   /* Coupure (cellule de la ligne éditable) : switch compact + libellé « Coupure ». */
   .coupure-switch { flex: 0 0 auto; }
+  .coupure-switch .track { width: 32px; height: 18px; }
+  .coupure-switch .track::after { width: 14px; height: 14px; }
+  .coupure-switch input:checked + .track::after { left: 16px; }
 
   /* Bascule Jour / Nuit */
   .switch {
@@ -697,6 +700,8 @@
   }
   .cal-mark.ok { color: var(--ok); }
   .cal-mark.bad { color: var(--bad); }
+  /* Flèche « sortante » (bord droit) : départ du jour qui précède une période RP. */
+  .cal-mark.leave { left: auto; right: -7px; }
 
   /* Case de fin de calendrier : « + » ajoute le jour suivant, « − » supprime le dernier. */
   .cal-add {
@@ -1584,6 +1589,14 @@
     return null;
   }
 
+  // Premier jour travaillé strictement après l'index i (null si aucun).
+  function nextWorked(i) {
+    for (var k = i + 1; k < state.days.length; k++) {
+      if (!state.days[k].rp) return k;
+    }
+    return null;
+  }
+
   // Temps de repos avant le jour travaillé i : depuis la fin du dernier
   // service jusqu'à la prise de service de ce jour, en englobant les jours RP.
   function restBefore(i) {
@@ -1942,7 +1955,8 @@
       info.textContent = day.rp ? "RP" : dayAmpText(day);
       cell.appendChild(info);
 
-      // Repère de repos (entre le jour précédent et celui-ci).
+      // Repère de repos ENTRANT (bord gauche) : flèche verte / croix rouge
+      // avant la reprise du travail (englobe d'éventuels jours RP intercalés).
       if (!day.rp) {
         var st = restStatusInto(i);
         if (st) {
@@ -1950,6 +1964,16 @@
           mark.className = "cal-mark " + st;
           mark.textContent = (st === "ok") ? "→" : "✕";
           cell.appendChild(mark);
+        }
+
+        // Repère SORTANT (bord droit) : flèche verte qui part du jour précédant
+        // une période RP, quand le repos qui suit est suffisant (vert uniquement).
+        var nxt = nextWorked(i);
+        if (nxt !== null && nxt > i + 1 && restStatusInto(nxt) === "ok") {
+          var leave = document.createElement("span");
+          leave.className = "cal-mark leave ok";
+          leave.textContent = "→";
+          cell.appendChild(leave);
         }
       }
 
