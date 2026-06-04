@@ -35,6 +35,8 @@
     --stripe-dark: #2b2b30;
     --rest: #1f6f7a;       /* compteur de repos neutre (teal) */
     --rest-bg: #e8f3f4;
+    --dp: #4a5da6;         /* jour avec découché (DP) : trajet retour annulé (indigo doux) */
+    --dp-bg: #eef1fb;
     --ok: #1f8a4c;         /* repos suffisant (vert) */
     --ok-bg: #e6f4ec;
     --bad: #c0392b;        /* repos insuffisant (rouge) */
@@ -566,6 +568,20 @@
   .rp-toggle input { width: 16px; height: 16px; accent-color: var(--rest); }
   .day-card.rp { background: var(--rest-bg); border-color: var(--rest); }
 
+  /* Case DP (découché) : à gauche du compteur d'heures, annule le trajet retour. */
+  .dp-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--dp);
+    cursor: pointer;
+  }
+  .dp-toggle input { width: 16px; height: 16px; accent-color: var(--dp); }
+  /* Champ horaire désactivé (ex. Retour quand DP est coché) : grisé. */
+  .de-input:disabled { opacity: 0.4; background: #f2f2f4; cursor: not-allowed; }
+
   /* Coupure (cellule de la ligne éditable) : switch compact + libellé « Coupure ». */
   .coupure-switch { flex: 0 0 auto; }
   .coupure-switch .track { width: 32px; height: 18px; }
@@ -696,6 +712,8 @@
   .cal-day .cal-amp { font-size: 0.58rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
   .cal-day.rp { background: var(--rest-bg); border-color: var(--rest); }
   .cal-day.rp .cal-amp { color: var(--rest); }
+  .cal-day.dp { background: var(--dp-bg); border-color: var(--dp); }
+  .cal-day.dp .cal-amp { color: var(--dp); }
   .cal-day:active { transform: translateY(1px); }
   /* Repère de repos entre deux jours : flèche verte (OK) / croix rouge (insuffisant). */
   .cal-mark {
@@ -712,6 +730,17 @@
   .cal-mark.bad { color: var(--bad); }
   /* Flèche « sortante » (bord droit) : départ du jour qui précède une période RP. */
   .cal-mark.leave { left: auto; right: -7px; }
+  /* Pictogramme déplacement (coin haut-droit) : 🚐 jour de découché (DP),
+     🍔 jour travaillé de retour suivant un découché. */
+  .cal-icon {
+    position: absolute;
+    top: 1px;
+    right: 2px;
+    font-size: 0.72rem;
+    line-height: 1;
+    z-index: 1;
+    pointer-events: none;
+  }
 
   /* Case de fin de calendrier : « + » ajoute le jour suivant, « − » supprime le dernier. */
   .cal-add {
@@ -1484,8 +1513,9 @@
 
   function newDay() {
     // s/e = service ; aS = départ aller ; rE = retour ; rp = repos ;
-    // night = période de nuit ; coupure = déduit 1h de l'amplitude du jour.
-    return { s: "", e: "", aS: "", rE: "", rp: false, night: false, coupure: false };
+    // night = période de nuit ; coupure = déduit 1h de l'amplitude du jour ;
+    // dp = découché (trajet retour annulé pour la journée).
+    return { s: "", e: "", aS: "", rE: "", rp: false, night: false, coupure: false, dp: false };
   }
 
   function defaultState() {
@@ -1504,7 +1534,7 @@
             return {
               s: d.s || "", e: d.e || "",
               aS: d.aS || "", rE: d.rE || "",
-              rp: !!d.rp, night: !!d.night, coupure: !!d.coupure
+              rp: !!d.rp, night: !!d.night, coupure: !!d.coupure, dp: !!d.dp
             };
           })
         };
@@ -1529,12 +1559,15 @@
     return d;
   }
 
-  // Libellé du jour i : « Mardi 02 juin », sinon « Jour i+1 ».
+  // Libellé du jour i : « Jeudi 27/09 » (jour de semaine + jj/mm), sinon « Jour i+1 ».
   function dayLabel(i) {
     var d = dayDateObj(i);
     if (!d) return "Jour " + (i + 1);
-    var txt = d.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" });
-    return txt.charAt(0).toUpperCase() + txt.slice(1);
+    var wd = d.toLocaleDateString("fr-FR", { weekday: "long" });
+    wd = wd.charAt(0).toUpperCase() + wd.slice(1);
+    var dd = ("0" + d.getDate()).slice(-2);
+    var mm = ("0" + (d.getMonth() + 1)).slice(-2);
+    return wd + " " + dd + "/" + mm;
   }
 
   // Mode nuit : « jour précédent / jour » (ex. lundi -> DI/LU). null si pas de date.
@@ -1549,42 +1582,58 @@
   // ---- Calcul -------------------------------------------------------------
 
   // Amplitude d'un jour = amplitude de service + durées des trajets aller/retour
-  // (un trajet incomplet compte pour 0).
-  function dayAmplitude(day) {
+  // (un trajet incomplet compte pour 0). `i` (optionnel) sert à neutraliser le
+  // trajet aller d'un DP qui suit déjà un DP.
+  function dayAmplitude(day, i) {
     var service = span(toMinutes(day.s), toMinutes(day.e));
     if (service === null) return null;
     // Trajet aller : de l'heure de départ jusqu'au début de service.
-    var aller = span(toMinutes(day.aS), toMinutes(day.s)) || 0;
+    // Annulé (compté 0) pour un découché (DP) qui suit déjà un DP.
+    var aller = (i != null && allerCancelled(i)) ? 0 : (span(toMinutes(day.aS), toMinutes(day.s)) || 0);
     // Trajet retour : de la fin de service jusqu'à l'heure de retour.
-    var retour = span(toMinutes(day.e), toMinutes(day.rE)) || 0;
+    // Annulé (compté 0) lorsque la journée est un découché (DP).
+    var retour = day.dp ? 0 : (span(toMinutes(day.e), toMinutes(day.rE)) || 0);
     var total = service + aller + retour;
     if (day.coupure) total -= 60; // coupure : déduit 1h
     return Math.max(0, total);
   }
 
   // Texte d'amplitude affiché : « 00h00 » si rien de saisi.
-  function dayAmpText(day) {
-    var a = dayAmplitude(day);
+  function dayAmpText(day, i) {
+    var a = dayAmplitude(day, i);
     return a === null ? "00h00" : fmtDuration(a);
   }
 
+  // L'aller est annulé pour un découché (DP) qui suit déjà un DP : l'agent est
+  // déjà sur place, il n'y a pas de trajet d'arrivée ce jour-là.
+  function allerCancelled(i) {
+    var day = state.days[i];
+    if (!day || !day.dp) return false;
+    var p = prevWorked(i);
+    return p !== null && state.days[p].dp;
+  }
+
   // Début / fin de journée « prise de service » (trajet inclus s'il est saisi).
-  function dayStart(day) {
+  function dayStart(day, i) {
+    // Aller annulé (DP suivant un DP) : la journée démarre au début de service.
+    if (i != null && allerCancelled(i)) return toMinutes(day.s);
     var a = toMinutes(day.aS);
     return a !== null ? a : toMinutes(day.s);
   }
   function dayEnd(day) {
+    // Découché (DP) : pas de trajet retour, la journée finit à la fin de service.
+    if (day.dp) return toMinutes(day.e);
     var r = toMinutes(day.rE);
     return r !== null ? r : toMinutes(day.e);
   }
 
   // Minutes absolues (le jour i démarre à i*DAY) du début/fin d'un jour travaillé.
   function startAbs(i) {
-    var s = dayStart(state.days[i]);
+    var s = dayStart(state.days[i], i);
     return s === null ? null : i * DAY + s;
   }
   function endAbs(i) {
-    var st = dayStart(state.days[i]);
+    var st = dayStart(state.days[i], i);
     var en = dayEnd(state.days[i]);
     if (en === null) return null;
     // Si la fin est antérieure au début, la journée franchit minuit (+24h).
@@ -1702,10 +1751,25 @@
     right.className = "day-head-right";
 
     if (!day.rp) {
+      // Case « DP » (découché) : à gauche du compteur, annule le trajet retour.
+      var dpLbl = document.createElement("label");
+      dpLbl.className = "dp-toggle";
+      var dpCb = document.createElement("input");
+      dpCb.type = "checkbox";
+      dpCb.checked = day.dp;
+      dpCb.addEventListener("change", function () {
+        day.dp = dpCb.checked;
+        saveState();
+        renderDays(); // recalcule l'amplitude, grise le Retour, teinte le calendrier
+      });
+      dpLbl.appendChild(dpCb);
+      dpLbl.appendChild(document.createTextNode(" DP"));
+      right.appendChild(dpLbl);
+
       var amp = document.createElement("span");
       amp.className = "day-amp";
       amp.id = "dayAmp-" + i;
-      amp.textContent = dayAmpText(day);
+      amp.textContent = dayAmpText(day, i);
       right.appendChild(amp);
     }
 
@@ -1718,7 +1782,7 @@
     resetBtn.addEventListener("click", function () {
       var d = state.days[i];
       d.s = ""; d.e = ""; d.aS = ""; d.rE = "";
-      d.rp = false; d.night = false; d.coupure = false;
+      d.rp = false; d.night = false; d.coupure = false; d.dp = false;
       saveState();
       renderDays();
     });
@@ -1775,7 +1839,7 @@
     var row = document.createElement("div");
     row.className = "day-edit";
 
-    function timeCell(label, id, value, onInput) {
+    function timeCell(label, id, value, onInput, disabled) {
       var cell = document.createElement("div");
       cell.className = "de-cell";
       var input = document.createElement("input");
@@ -1786,6 +1850,7 @@
       input.maxLength = 5;
       input.placeholder = "00h00";
       input.value = value || "";
+      if (disabled) input.disabled = true;
       input.addEventListener("input", function () {
         input.value = formatTime(input.value);
         onInput(input.value);
@@ -1798,7 +1863,8 @@
       return cell;
     }
 
-    row.appendChild(timeCell("Aller", "aller-" + i, day.aS, function (v) { day.aS = v; saveState(); compute(); }));
+    // Aller : désactivé pour un DP qui suit déjà un DP (déjà sur place, pas de trajet d'arrivée).
+    row.appendChild(timeCell("Aller", "aller-" + i, day.aS, function (v) { day.aS = v; saveState(); compute(); }, allerCancelled(i)));
     row.appendChild(timeCell("Début", "svc-" + i + "-s", day.s, function (v) { day.s = v; saveState(); compute(); }));
 
     // Coupure : switch + libellé « Coupure » en dessous.
@@ -1826,7 +1892,8 @@
     row.appendChild(cp);
 
     row.appendChild(timeCell("Fin", "svc-" + i + "-e", day.e, function (v) { day.e = v; saveState(); compute(); }));
-    row.appendChild(timeCell("Retour", "retour-" + i, day.rE, function (v) { day.rE = v; saveState(); compute(); }));
+    // Retour : désactivé quand DP (découché) est coché, puisque le trajet retour est annulé.
+    row.appendChild(timeCell("Retour", "retour-" + i, day.rE, function (v) { day.rE = v; saveState(); compute(); }, day.dp));
 
     return row;
   }
@@ -1884,7 +1951,7 @@
   function compute() {
     state.days.forEach(function (day, i) {
       var el = document.getElementById("dayAmp-" + i);
-      if (el) el.textContent = dayAmpText(day);
+      if (el) el.textContent = dayAmpText(day, i);
 
       var restVal = document.getElementById("rest-" + i);
       if (!restVal) return;
@@ -1946,7 +2013,7 @@
     state.days.forEach(function (day, i) {
       var cell = document.createElement("button");
       cell.type = "button";
-      cell.className = "cal-day" + (day.rp ? " rp" : "");
+      cell.className = "cal-day" + (day.rp ? " rp" : (day.dp ? " dp" : ""));
 
       // Décale la première case sur le bon jour de semaine (les suivantes suivent).
       if (i === 0) {
@@ -1962,8 +2029,24 @@
 
       var info = document.createElement("span");
       info.className = "cal-amp";
-      info.textContent = day.rp ? "RP" : dayAmpText(day);
+      info.textContent = day.rp ? "RP" : dayAmpText(day, i);
       cell.appendChild(info);
+
+      // Pictogramme déplacement : 🚐 le jour de découché (DP) ; 🍔 le jour
+      // travaillé de retour (1er jour travaillé non-DP suivant un découché).
+      var picto = "";
+      if (day.dp) {
+        picto = "🚐";
+      } else if (!day.rp) {
+        var pw = prevWorked(i);
+        if (pw !== null && state.days[pw].dp) picto = "🍔";
+      }
+      if (picto) {
+        var ic = document.createElement("span");
+        ic.className = "cal-icon";
+        ic.textContent = picto;
+        cell.appendChild(ic);
+      }
 
       // Repère de repos ENTRANT (bord gauche) : flèche verte / croix rouge
       // avant la reprise du travail (englobe d'éventuels jours RP intercalés).
