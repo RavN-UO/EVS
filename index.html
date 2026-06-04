@@ -448,21 +448,45 @@
   .date-input-wrap.filled .date-ph { color: var(--accent-dark); }
 
   .day-card { padding: 8px 10px; margin-bottom: 8px; }
+  /* En-tête en 3 zones : [date + RP] | [dupliquer centré] | [amplitude + actions]. */
   .day-card .label-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 6px;
     margin-bottom: 6px;
     padding-bottom: 5px;
     border-bottom: 1px solid var(--border);
   }
   .day-card .name { font-size: 0.95rem; color: var(--accent-dark); }
+  /* La date peut être tronquée si l'en-tête manque de place (la date complète
+     reste visible dans la vue calendrier). */
+  .day-card .day-name-wrap .name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .day-dup-center { display: flex; justify-content: center; min-width: 0; }
+  .day-dup-center .dup-btn { font-size: 0.7rem; padding: 3px 8px; white-space: nowrap; }
 
   .day-head-right {
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: flex-end;
+    gap: 10px;
   }
-  /* La croix de suppression est écartée de la case RP pour éviter les clics
-     accidentels (surtout en mode RP, où l'amplitude n'est pas affichée). */
-  .day-head-right .del-btn { margin-left: 6px; padding: 0 6px; }
+  /* Petit bouton de réinitialisation du jour (vide les saisies de la journée). */
+  .reset-day-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.95rem;
+    line-height: 1;
+    padding: 0 2px;
+    opacity: 0.75;
+  }
+  .reset-day-btn:active { transform: translateY(1px); }
   .day-amp {
     font-weight: 700;
     color: #fff;
@@ -588,7 +612,7 @@
   .switch .sw-text { color: var(--text); }
 
   /* Libellé du jour + badge nuit (jour précédent / jour) */
-  .day-name-wrap { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .day-name-wrap { display: flex; align-items: baseline; gap: 8px; flex-wrap: nowrap; min-width: 0; }
   .night-badge {
     font-size: 0.72rem;
     font-weight: 700;
@@ -615,12 +639,130 @@
   }
   .rest-row .rest-label { color: #767b85; font-weight: 600; }
   .rest-row .rest-value { color: #767b85; font-weight: 700; }
+  .rest-row .rest-icon { font-weight: 800; font-size: 1.05rem; line-height: 1; color: #767b85; }
   .rest-row.ok { background: var(--ok-bg); border-color: var(--ok); }
   .rest-row.ok .rest-label,
-  .rest-row.ok .rest-value { color: var(--ok); }
+  .rest-row.ok .rest-value,
+  .rest-row.ok .rest-icon { color: var(--ok); }
   .rest-row.bad { background: var(--bad-bg); border-color: var(--bad); }
   .rest-row.bad .rest-label,
-  .rest-row.bad .rest-value { color: var(--bad); }
+  .rest-row.bad .rest-value,
+  .rest-row.bad .rest-icon { color: var(--bad); }
+
+  /* Bouton « Dupliquer service J-1 » (recopie service + coupure). */
+  .dup-btn {
+    border: 1px dashed var(--accent);
+    background: #fff;
+    color: var(--accent);
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    line-height: 1.2;
+  }
+  .dup-btn:active { transform: translateY(1px); }
+
+  /* En-tête de jour repliable (formulaire fermé par défaut). */
+  .label-row.collapsible { cursor: pointer; }
+  .day-chevron {
+    display: inline-block;
+    width: 0.9em;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+
+  /* Vue calendrier : grille 7 colonnes (lundi -> dimanche). Les jours saisis se
+     placent dans la bonne colonne ; un tap fait défiler jusqu'à la carte du jour.
+     Reconstruite dans compute(). */
+  .cal {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .cal:empty { display: none; }
+  .cal-head {
+    text-align: center;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+  .cal-day {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    min-height: 40px;
+    padding: 4px 2px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    font: inherit;
+  }
+  .cal-day .cal-num { font-size: 0.72rem; font-weight: 700; color: var(--accent-dark); }
+  .cal-day .cal-amp { font-size: 0.58rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
+  .cal-day.rp { background: var(--rest-bg); border-color: var(--rest); }
+  .cal-day.rp .cal-amp { color: var(--rest); }
+  .cal-day:active { transform: translateY(1px); }
+  /* Repère de repos entre deux jours : flèche verte (OK) / croix rouge (insuffisant). */
+  .cal-mark {
+    position: absolute;
+    left: -7px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8rem;
+    font-weight: 800;
+    line-height: 1;
+    z-index: 1;
+  }
+  .cal-mark.ok { color: var(--ok); }
+  .cal-mark.bad { color: var(--bad); }
+
+  /* Case de fin de calendrier : « + » ajoute le jour suivant, « − » supprime le dernier. */
+  .cal-add {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 40px;
+    padding: 2px;
+    border: 1px dashed var(--accent);
+    border-radius: 8px;
+    background: #fff;
+  }
+  .cal-add-btn, .cal-rem-btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 4px;
+  }
+  .cal-add-btn { font-size: 1.2rem; font-weight: 800; color: var(--accent); }
+  .cal-rem-btn { font-size: 1rem; font-weight: 800; color: var(--muted); }
+  .cal-add-btn:active, .cal-rem-btn:active { transform: translateY(1px); }
+
+  /* Résumé compact affiché sous l'en-tête quand le jour est replié. */
+  .day-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 10px;
+    font-size: 0.72rem;
+    color: var(--muted);
+    padding: 4px 2px 0;
+  }
+  .day-summary .ds-item { display: inline-flex; gap: 4px; align-items: baseline; }
+  .day-summary .ds-val { font-weight: 700; color: var(--text); }
+  .day-summary .ds-item.on .ds-val { color: var(--accent); }
+
+  /* Surbrillance brève de la carte ciblée depuis le bandeau. */
+  .day-card.flash { box-shadow: 0 0 0 3px rgba(140, 42, 82, 0.35); }
 
   footer {
     text-align: center;
@@ -819,10 +961,6 @@
     </div>
 
     <div id="days"></div>
-
-    <div class="add-row">
-      <button type="button" class="add-btn" id="addDay">＋ Ajouter un jour</button>
-    </div>
 
     <div class="actions">
       <button type="button" class="btn" id="resetDep">Réinitialiser</button>
@@ -1349,8 +1487,9 @@
 
   function newDay() {
     // s/e = service ; aS = départ aller ; rE = retour ; rp = repos ;
-    // night = période de nuit ; coupure = déduit 1h de l'amplitude du jour.
-    return { s: "", e: "", aS: "", rE: "", rp: false, night: false, coupure: false };
+    // night = période de nuit ; coupure = déduit 1h de l'amplitude du jour ;
+    // collapsed = formulaire replié (fermé par défaut, pour la lisibilité).
+    return { s: "", e: "", aS: "", rE: "", rp: false, night: false, coupure: false, collapsed: true };
   }
 
   function defaultState() {
@@ -1369,7 +1508,9 @@
             return {
               s: d.s || "", e: d.e || "",
               aS: d.aS || "", rE: d.rE || "",
-              rp: !!d.rp, night: !!d.night, coupure: !!d.coupure
+              rp: !!d.rp, night: !!d.night, coupure: !!d.coupure,
+              // Données v1 sans le champ : repliées par défaut.
+              collapsed: (d.collapsed === undefined ? true : !!d.collapsed)
             };
           })
         };
@@ -1480,6 +1621,12 @@
   var daysEl = document.getElementById("days");
   var firstDateEl = document.getElementById("firstDate");
 
+  // Vue calendrier, insérée une fois juste au-dessus de la liste des jours.
+  var calEl = document.createElement("div");
+  calEl.id = "calendar";
+  calEl.className = "cal";
+  daysEl.parentNode.insertBefore(calEl, daysEl);
+
   // Champ horaire compact (input seul, sans label) : formatage auto + pavé num.
   function timeInput(id, value, onInput) {
     var input = document.createElement("input");
@@ -1527,6 +1674,7 @@
   function buildDay(day, i) {
     var card = document.createElement("div");
     card.className = "card day-card" + (day.rp ? " rp" : "");
+    card.id = "dayCard-" + i;   // cible du défilement depuis le bandeau récap
 
     // En-tête : libellé du jour (+ badge nuit) + case RP + amplitude + suppression.
     var head = document.createElement("div");
@@ -1534,6 +1682,13 @@
 
     var nameWrap = document.createElement("div");
     nameWrap.className = "day-name-wrap";
+    // Chevron indiquant l'état replié/déplié (pas sur un jour RP, qui n'a pas de formulaire).
+    if (!day.rp) {
+      var chev = document.createElement("span");
+      chev.className = "day-chevron";
+      chev.textContent = day.collapsed ? "▸" : "▾";
+      nameWrap.appendChild(chev);
+    }
     var name = document.createElement("span");
     name.className = "name";
     name.textContent = dayLabel(i);
@@ -1566,6 +1721,29 @@
 
     head.appendChild(nameWrap);
 
+    // Bouton « Dupliquer service J-1 » centré dans l'en-tête (entre la case RP et
+    // le compteur d'amplitude) : recopie début/fin de service + coupure du dernier
+    // jour travaillé. Visible même quand le jour est replié.
+    var prevIdx = prevWorked(i);
+    var dupCenter = document.createElement("div");
+    dupCenter.className = "day-dup-center";
+    if (!day.rp && prevIdx !== null) {
+      var dupBtn = document.createElement("button");
+      dupBtn.type = "button";
+      dupBtn.className = "dup-btn";
+      dupBtn.textContent = "⧉ Dupliquer service J-1";
+      dupBtn.addEventListener("click", function () {
+        var src = state.days[prevIdx];
+        day.s = src.s;
+        day.e = src.e;
+        day.coupure = src.coupure;
+        saveState();
+        renderDays();
+      });
+      dupCenter.appendChild(dupBtn);
+    }
+    head.appendChild(dupCenter);
+
     var right = document.createElement("div");
     right.className = "day-head-right";
 
@@ -1576,6 +1754,21 @@
       amp.textContent = dayAmpText(day);
       right.appendChild(amp);
     }
+
+    // Réinitialiser ce jour : vide les saisies (sans supprimer la journée).
+    var resetBtn = document.createElement("button");
+    resetBtn.type = "button";
+    resetBtn.className = "reset-day-btn";
+    resetBtn.textContent = "♻️";
+    resetBtn.setAttribute("aria-label", "Réinitialiser ce jour");
+    resetBtn.addEventListener("click", function () {
+      var d = state.days[i];
+      d.s = ""; d.e = ""; d.aS = ""; d.rE = "";
+      d.rp = false; d.night = false; d.coupure = false;
+      saveState();
+      renderDays();
+    });
+    right.appendChild(resetBtn);
 
     if (state.days.length > 1) {
       var del = document.createElement("button");
@@ -1591,10 +1784,29 @@
       right.appendChild(del);
     }
     head.appendChild(right);
+
+    // En-tête cliquable : déplie / replie le formulaire du jour. Les clics sur un
+    // contrôle (case RP, bouton dupliquer, suppression) ne replient pas la carte.
+    if (!day.rp) {
+      head.classList.add("collapsible");
+      head.addEventListener("click", function (e) {
+        if (e.target.closest("input, button, label")) return;
+        day.collapsed = !day.collapsed;
+        saveState();
+        renderDays();
+      });
+    }
+
     card.appendChild(head);
 
     // Journée non travaillée (RP) : aucune saisie, elle compte en repos.
     if (day.rp) return card;
+
+    // Formulaire replié : on s'arrête à l'en-tête + un résumé compact des saisies.
+    if (day.collapsed) {
+      card.appendChild(buildDaySummary(day));
+      return card;
+    }
 
     // Options du jour : bascule Jour/Nuit (la case Coupure est dans la ligne Service).
     var opts = document.createElement("div");
@@ -1669,16 +1881,59 @@
     return card;
   }
 
+  // Résumé compact des saisies, affiché sous l'en-tête d'un jour replié.
+  // Ordre demandé : Trajet aller, Service début, Coupure, Service fin, Trajet retour.
+  function buildDaySummary(day) {
+    var wrap = document.createElement("div");
+    wrap.className = "day-summary";
+    function item(label, value, on) {
+      var s = document.createElement("span");
+      s.className = "ds-item" + (on ? " on" : "");
+      var l = document.createElement("span");
+      l.className = "ds-lbl";
+      l.textContent = label;
+      var v = document.createElement("span");
+      v.className = "ds-val";
+      v.textContent = value;
+      s.appendChild(l);
+      s.appendChild(v);
+      return s;
+    }
+    wrap.appendChild(item("Aller", day.aS || "—"));
+    wrap.appendChild(item("Début", day.s || "—"));
+    wrap.appendChild(item("Coupure", day.coupure ? "✓" : "—", day.coupure));
+    wrap.appendChild(item("Fin", day.e || "—"));
+    wrap.appendChild(item("Retour", day.rE || "—"));
+    return wrap;
+  }
+
+  // Ajout / retrait de jours (déclenchés depuis la vue calendrier).
+  function addDay() {
+    state.days.push(newDay());
+    saveState();
+    renderDays();
+  }
+  function removeLastDay() {
+    if (state.days.length <= 1) return;
+    state.days.pop();
+    saveState();
+    renderDays();
+  }
+
   // Compteur de repos inséré entre deux jours.
   function buildRest(i) {
     var row = document.createElement("div");
     row.className = "rest-row";
+    var icon = document.createElement("span");
+    icon.className = "rest-icon";
+    icon.id = "rest-icon-" + i;
     var lab = document.createElement("span");
     lab.className = "rest-label";
     lab.textContent = "Temps de repos";
     var val = document.createElement("span");
     val.className = "rest-value";
     val.id = "rest-" + i;
+    row.appendChild(icon);
     row.appendChild(lab);
     row.appendChild(val);
     return row;
@@ -1688,9 +1943,10 @@
     daysEl.innerHTML = "";
     state.days.forEach(function (day, i) {
       daysEl.appendChild(buildDay(day, i));
-      // Compteur de repos affiché juste avant un jour travaillé (englobe les RP).
+      // Compteur de repos affiché seulement s'il a une valeur (sinon, rien : on
+      // laisse la place). La valeur englobe d'éventuels jours RP intercalés.
       var next = state.days[i + 1];
-      if (next && !next.rp) daysEl.appendChild(buildRest(i));
+      if (next && !next.rp && restBefore(i + 1) !== null) daysEl.appendChild(buildRest(i));
     });
     compute();
   }
@@ -1718,13 +1974,116 @@
       // d'éventuelles journées RP (chacune +24h) est INDICATIF et retiré du
       // calcul de la couleur (on évalue le repos « comme si » jours consécutifs).
       var row = restVal.parentNode;
+      var iconEl = document.getElementById("rest-icon-" + i);
       row.classList.remove("ok", "bad");
+      if (iconEl) iconEl.textContent = "";
       if (p === null || rest === null) return;
       var numRP = i - p;                       // journées RP intercalées
       var effective = rest - numRP * DAY;
       var ok = effective >= restThreshold(state.days[p]);
       row.classList.add(ok ? "ok" : "bad");
+      // Repère entre les deux jours : flèche verte (repos suffisant) dirigée
+      // vers le jour suivant, ou croix rouge (repos insuffisant).
+      if (iconEl) iconEl.textContent = ok ? "↓" : "✕";
     });
+    renderCalendar(); // vue calendrier reconstruite avec les valeurs à jour
+  }
+
+  // Libellés des colonnes (lundi -> dimanche) et index lundi=1 .. dimanche=7.
+  var WEEKDAYS = ["Lu", "Ma", "Me", "Je", "Ve", "Sa", "Di"];
+  function mondayIndex(d) { return ((d.getDay() + 6) % 7) + 1; }
+
+  // Statut du repos AVANT le jour travaillé i (même règle que compute()) :
+  // "ok" / "bad" / "" (non évaluable : 1er jour ou horaires incomplets).
+  function restStatusInto(i) {
+    var p = prevWorked(i);
+    if (p === null) return "";
+    var rest = restBefore(i);
+    if (rest === null) return "";
+    var numRP = (i - p - 1);                  // journées RP intercalées
+    var effective = rest - numRP * DAY;
+    return effective >= restThreshold(state.days[p]) ? "ok" : "bad";
+  }
+
+  // (Re)construit la vue calendrier (grille 7 colonnes) à partir de state.days.
+  // Chaque jour se place sous le bon jour de semaine ; une flèche verte / croix
+  // rouge marque le repos entre les jours ; un tap fait défiler vers la carte.
+  function renderCalendar() {
+    if (!calEl) return;
+    calEl.innerHTML = "";
+
+    WEEKDAYS.forEach(function (w) {
+      var h = document.createElement("div");
+      h.className = "cal-head";
+      h.textContent = w;
+      calEl.appendChild(h);
+    });
+
+    state.days.forEach(function (day, i) {
+      var cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "cal-day" + (day.rp ? " rp" : "");
+
+      // Décale la première case sur le bon jour de semaine (les suivantes suivent).
+      if (i === 0) {
+        var d0 = dayDateObj(0);
+        if (d0) cell.style.gridColumnStart = mondayIndex(d0);
+      }
+
+      var num = document.createElement("span");
+      num.className = "cal-num";
+      var dd = dayDateObj(i);
+      num.textContent = dd ? ("0" + dd.getDate()).slice(-2) : ("J" + (i + 1));
+      cell.appendChild(num);
+
+      var info = document.createElement("span");
+      info.className = "cal-amp";
+      info.textContent = day.rp ? "RP" : dayAmpText(day);
+      cell.appendChild(info);
+
+      // Repère de repos (entre le jour précédent et celui-ci).
+      if (!day.rp) {
+        var st = restStatusInto(i);
+        if (st) {
+          var mark = document.createElement("span");
+          mark.className = "cal-mark " + st;
+          mark.textContent = (st === "ok") ? "→" : "✕";
+          cell.appendChild(mark);
+        }
+      }
+
+      cell.addEventListener("click", function () {
+        var card = document.getElementById("dayCard-" + i);
+        if (!card) return;
+        card.scrollIntoView({ behavior: "smooth", block: "center" });
+        card.classList.add("flash");
+        setTimeout(function () { card.classList.remove("flash"); }, 1000);
+      });
+
+      calEl.appendChild(cell);
+    });
+
+    // Case de contrôle en fin de calendrier (toujours sur le créneau suivant) :
+    // « + » ajoute un jour ; « − » supprime le dernier (si plus d'un jour).
+    var addCell = document.createElement("div");
+    addCell.className = "cal-add";
+    var addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "cal-add-btn";
+    addBtn.textContent = "+";
+    addBtn.setAttribute("aria-label", "Ajouter un jour");
+    addBtn.addEventListener("click", addDay);
+    addCell.appendChild(addBtn);
+    if (state.days.length > 1) {
+      var remBtn = document.createElement("button");
+      remBtn.type = "button";
+      remBtn.className = "cal-rem-btn";
+      remBtn.textContent = "−";
+      remBtn.setAttribute("aria-label", "Supprimer le dernier jour");
+      remBtn.addEventListener("click", removeLastDay);
+      addCell.appendChild(remBtn);
+    }
+    calEl.appendChild(addCell);
   }
 
   // ---- Initialisation -----------------------------------------------------
@@ -1768,12 +2127,6 @@
     if (typeof firstDateEl.showPicker === "function") {
       try { firstDateEl.showPicker(); } catch (e) { /* geste requis : ignoré */ }
     }
-  });
-
-  document.getElementById("addDay").addEventListener("click", function () {
-    state.days.push(newDay());
-    saveState();
-    renderDays();
   });
 
   // Réinitialise tout le simulateur : date effacée et 5 jours vides.
