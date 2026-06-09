@@ -497,7 +497,8 @@
     padding: 2px 10px;
     border-radius: 999px;
   }
-
+  .day-amp.amp-ok  { background: var(--ok); }
+  .day-amp.amp-bad { background: var(--bad); }
   /* Ligne éditable : Aller | Début | Coupure | Fin | Retour (clic = saisie).
      Cellules en colonne (valeur au-dessus, libellé en dessous), ~2 lignes de
      haut pour des cibles tactiles confortables. La colonne Coupure (juste un
@@ -1453,6 +1454,20 @@
     });
   }
 
+  // ---- Synchronisation depuis le simulateur de deplacement ----------------
+
+  // Appelee par l'IIFE deplacement apres chaque compute().
+  // Met a jour la quantite de la prime "deplacements" avec le nb de DP coches.
+  window.syncDpToEvs = function (dpCount) {
+    var p = state.primes.find(function (x) { return x.id === "deplacements"; });
+    if (!p) return;
+    p.qty = dpCount;
+    var inp = document.getElementById("qty-deplacements");
+    if (inp) inp.value = dpCount > 0 ? String(dpCount) : "";
+    refreshTotals();
+    saveState();
+  };
+
   // ---- Initialisation -----------------------------------------------------
 
   loadState();
@@ -1515,7 +1530,7 @@
     // s/e = service ; aS = départ aller ; rE = retour ; rp = repos ;
     // night = période de nuit ; coupure = déduit 1h de l'amplitude du jour ;
     // dp = découché (trajet retour annulé pour la journée).
-    return { s: "", e: "", aS: "", rE: "", rp: false, night: false, coupure: false, dp: false };
+    return { s: "", e: "", aS: "", rE: "", rp: false, night: false, coupure: false, dp: false, dpManual: false };
   }
 
   function defaultState() {
@@ -1534,7 +1549,7 @@
             return {
               s: d.s || "", e: d.e || "",
               aS: d.aS || "", rE: d.rE || "",
-              rp: !!d.rp, night: !!d.night, coupure: !!d.coupure, dp: !!d.dp
+              rp: !!d.rp, night: !!d.night, coupure: !!d.coupure, dp: !!d.dp, dpManual: !!d.dpManual
             };
           })
         };
@@ -1761,12 +1776,13 @@
       dpLbl.className = "dp-toggle";
       var dpCb = document.createElement("input");
       dpCb.type = "checkbox";
+      dpCb.id = "dp-cb-" + i;
       dpCb.checked = day.dp;
-      dpCb.addEventListener("change", function () {
-        day.dp = dpCb.checked;
-        saveState();
-        renderDays(); // recalcule l'amplitude, grise le Retour, teinte le calendrier
-      });
+      // DP en lecture seule : bloque clic sur la checkbox ET sur le label parent
+      dpCb.style.pointerEvents = "none";
+      dpCb.tabIndex = -1;
+      dpLbl.style.pointerEvents = "none";
+      dpLbl.style.cursor = "default";
       dpLbl.appendChild(dpCb);
       dpLbl.appendChild(document.createTextNode(" DP"));
       right.appendChild(dpLbl);
@@ -1787,7 +1803,7 @@
     resetBtn.addEventListener("click", function () {
       var d = state.days[i];
       d.s = ""; d.e = ""; d.aS = ""; d.rE = "";
-      d.rp = false; d.night = false; d.coupure = false; d.dp = false;
+      d.rp = false; d.night = false; d.coupure = false; d.dp = false; d.dpManual = false;
       saveState();
       renderDays();
     });
@@ -1952,37 +1968,93 @@
     return prevDay.night ? 14 * 60 : 12 * 60;
   }
 
+  var DP_THRESHOLD_DAY   = 10 * 60;       // 600 min = 10h00 (jour)
+  var DP_THRESHOLD_NIGHT = 8 * 60 + 30;   // 510 min = 8h30  (nuit)
+  var REST_DP_MIN        = 12 * 60;        // 720 min = 12h00 (repos mini jour/jour)
+
   // Met à jour l'amplitude de chaque jour et les temps de repos intermédiaires.
   function compute() {
+
+    // --- Passe 1 : calcul DP auto (amplitude + repos) ---
     state.days.forEach(function (day, i) {
+      if (day.rp || day.dpManual) return; // RP ou decoche manuellement : on ne touche pas
+
+      // Regle 1 : amplitude brute (retour inclus, dp force a false) > seuil selon nuit/jour
+      var dpSaved = day.dp;
+      day.dp = false;
+      var ampRaw = dayAmplitude(day, i);
+      day.dp = dpSaved;
+      var seuil = day.night ? DP_THRESHOLD_NIGHT : DP_THRESHOLD_DAY;
+      var needDpAmp = (ampRaw !== null && ampRaw > seuil);
+
+      // Regle 2 : repos < 12h apres une journee de jour, que le suivant soit de jour ou de nuit
+      // Le trajet aller du suivant est toujours inclus (dp force a false sur nxt)
+      // pour eviter la circularite : allerCancelled(nxt) depend de day.dp courant
+      var needDpRest = false;
+      var nxt = nextWorked(i);
+      if (nxt !== null && !day.night) {
+        var nxtDay = state.days[nxt];
+        var nxtDpSaved = nxtDay.dp;
+        nxtDay.dp = false;
+        var restAfter = restBefore(nxt);
+        nxtDay.dp = nxtDpSaved;
+        if (restAfter !== null) {
+          var numRP = nxt - i - 1; // jours RP intercales
+          var effective = restAfter - numRP * DAY;
+          needDpRest = (effective < REST_DP_MIN);
+        }
+      }
+
+      var shouldDp = needDpAmp || needDpRest;
+      if (shouldDp !== day.dp) {
+        day.dp = shouldDp;
+        saveState();
+        var cb = document.getElementById("dp-cb-" + i);
+        if (cb) cb.checked = day.dp;
+      }
+    });
+
+    // --- Passe 2 : mise a jour du DOM ---
+    state.days.forEach(function (day, i) {
+      // Badge amplitude : coloration selon amplitude finale vs seuil du jour
       var el = document.getElementById("dayAmp-" + i);
-      if (el) el.textContent = dayAmpText(day, i);
+      if (el) {
+        el.textContent = dayAmpText(day, i);
+        var ampFinal = dayAmplitude(day, i);
+        var seuilFinal = day.night ? DP_THRESHOLD_NIGHT : DP_THRESHOLD_DAY;
+        el.classList.remove("amp-ok", "amp-bad");
+        if (ampFinal !== null) {
+          el.classList.add(ampFinal > seuilFinal ? "amp-bad" : "amp-ok");
+        }
+      }
 
       var restVal = document.getElementById("rest-" + i);
       if (!restVal) return;
 
-      var next = i + 1;                 // jour travaillé qui suit ce compteur
-      var p = prevWorked(next);         // dernier jour travaillé avant lui
+      var next = i + 1;
+      var p = prevWorked(next);
       var rest = restBefore(next);
-      restVal.textContent = fmtDuration(rest); // valeur affichée = repos total (indicatif)
+      restVal.textContent = fmtDuration(rest);
 
-      // Couleur : vert si repos suffisant, rouge sinon. Le temps ajouté par
-      // d'éventuelles journées RP (chacune +24h) est INDICATIF et retiré du
-      // calcul de la couleur (on évalue le repos « comme si » jours consécutifs).
       var row = restVal.parentNode;
       var iconEl = document.getElementById("rest-icon-" + i);
       row.classList.remove("ok", "bad");
       if (iconEl) iconEl.textContent = "";
       if (p === null || rest === null) return;
-      var numRP = i - p;                       // journées RP intercalées
+      var numRP = i - p;
       var effective = rest - numRP * DAY;
       var ok = effective >= restThreshold(state.days[p]);
       row.classList.add(ok ? "ok" : "bad");
-      // Repère entre les deux jours : flèche verte (repos suffisant) dirigée
-      // vers le jour suivant, ou croix rouge (repos insuffisant).
       if (iconEl) iconEl.textContent = ok ? "↓" : "✕";
     });
-    renderCalendar(); // vue calendrier reconstruite avec les valeurs à jour
+
+    renderCalendar(); // vue calendrier reconstruite avec les valeurs a jour
+
+    // Synchronise le nb de DP coches vers la quantite EVS "deplacements"
+    if (typeof window.syncDpToEvs === "function") {
+      var dpCount = state.days.filter(function (d) { return d.dp; }).length;
+      window.syncDpToEvs(dpCount);
+    }
   }
 
   // Libellés des colonnes (lundi -> dimanche) et index lundi=1 .. dimanche=7.
