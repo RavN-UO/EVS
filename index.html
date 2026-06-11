@@ -662,6 +662,10 @@
   .rest-row.bad .rest-value,
   .rest-row.bad .rest-icon { color: var(--bad); }
 
+  .rest-row.ongoing .rest-label,
+  .rest-row.ongoing .rest-value,
+  .rest-row.ongoing .rest-icon { color: var(--accent); font-style: italic; }
+
   /* Bouton « Dupliquer service J-1 » (recopie service + coupure). */
   .dup-btn {
     border: 1px dashed var(--accent);
@@ -1957,8 +1961,17 @@
       daysEl.appendChild(buildDay(day, i));
       // Compteur de repos affiché seulement s'il a une valeur (sinon, rien : on
       // laisse la place). La valeur englobe d'éventuels jours RP intercalés.
-      var next = state.days[i + 1];
-      if (next && !next.rp && restBefore(i + 1) !== null) daysEl.appendChild(buildRest(i));
+      if (!day.rp) {
+        var nxtWorked = nextWorked(i);
+        var nxtRaw = state.days[i + 1];
+        if (nxtWorked !== null && restBefore(nxtWorked) !== null) {
+          // repos termine : prochain jour travaille avec heure saisie
+          daysEl.appendChild(buildRest(i));
+        } else if (nxtRaw && nxtRaw.rp && endAbs(i) !== null) {
+          // repos en cours : le suivant immediat est RP (repos pas encore fini)
+          daysEl.appendChild(buildRest(i));
+        }
+      }
     });
     compute();
   }
@@ -1976,28 +1989,28 @@
   function compute() {
 
     // --- Passe 1 : calcul DP auto (amplitude + repos) ---
-    state.days.forEach(function (day, i) {
-      if (day.rp || day.dpManual) return; // RP ou decoche manuellement : on ne touche pas
+    // Toutes les regles sont evaluees sur un snapshot dp=false pour eviter
+    // que la modification de day.dp[i] ne corrompe endAbs/startAbs des jours adjacents.
 
-      // Regle 1 : amplitude brute (retour inclus, dp force a false) > seuil selon nuit/jour
-      var dpSaved = day.dp;
-      day.dp = false;
+    // Snapshot : force tous les dp a false pour des calculs neutres
+    var dpSnapshot = state.days.map(function (d) { return d.dp; });
+    state.days.forEach(function (d) { d.dp = false; });
+
+    var newDp = state.days.map(function (day, i) {
+      if (day.rp || day.dpManual) return dpSnapshot[i]; // conserver l'etat actuel
+
+      // Regle 1 : amplitude brute (dp deja false dans le snapshot) > seuil
       var ampRaw = dayAmplitude(day, i);
-      day.dp = dpSaved;
       var seuil = day.night ? DP_THRESHOLD_NIGHT : DP_THRESHOLD_DAY;
       var needDpAmp = (ampRaw !== null && ampRaw > seuil);
 
-      // Regle 2 : repos < 12h apres une journee de jour, que le suivant soit de jour ou de nuit
-      // Le trajet aller du suivant est toujours inclus (dp force a false sur nxt)
-      // pour eviter la circularite : allerCancelled(nxt) depend de day.dp courant
+      // Regle 2 : repos < 12h apres une journee de jour
+      // dp est false sur tous les jours : allerCancelled retourne toujours false,
+      // donc startAbs inclut toujours le trajet aller -> calcul stable
       var needDpRest = false;
       var nxt = nextWorked(i);
       if (nxt !== null && !day.night) {
-        var nxtDay = state.days[nxt];
-        var nxtDpSaved = nxtDay.dp;
-        nxtDay.dp = false;
         var restAfter = restBefore(nxt);
-        nxtDay.dp = nxtDpSaved;
         if (restAfter !== null) {
           var numRP = nxt - i - 1; // jours RP intercales
           var effective = restAfter - numRP * DAY;
@@ -2005,43 +2018,73 @@
         }
       }
 
-      var shouldDp = needDpAmp || needDpRest;
-      if (shouldDp !== day.dp) {
-        day.dp = shouldDp;
-        saveState();
-        var cb = document.getElementById("dp-cb-" + i);
-        if (cb) cb.checked = day.dp;
-      }
+      return needDpAmp || needDpRest;
+    });
+
+    // Application : restaurer les dp calcules, sauvegarder si changement
+    var changed = false;
+    state.days.forEach(function (day, i) {
+      day.dp = newDp[i];
+      if (day.dp !== dpSnapshot[i]) changed = true;
+    });
+    if (changed) saveState();
+
+    // Mettre a jour les checkboxes DP dans le DOM
+    state.days.forEach(function (day, i) {
+      var cb = document.getElementById("dp-cb-" + i);
+      if (cb) cb.checked = day.dp;
     });
 
     // --- Passe 2 : mise a jour du DOM ---
     state.days.forEach(function (day, i) {
-      // Badge amplitude : coloration selon amplitude finale vs seuil du jour
+      // Badge amplitude : toujours l'amplitude brute (dp force a false = trajet retour inclus)
       var el = document.getElementById("dayAmp-" + i);
       if (el) {
-        el.textContent = dayAmpText(day, i);
-        var ampFinal = dayAmplitude(day, i);
+        var dpSaved2 = day.dp;
+        day.dp = false;
+        var ampBrute = dayAmplitude(day, i);
+        var ampBruteText = dayAmpText(day, i);
+        day.dp = dpSaved2;
+        el.textContent = ampBruteText;
         var seuilFinal = day.night ? DP_THRESHOLD_NIGHT : DP_THRESHOLD_DAY;
         el.classList.remove("amp-ok", "amp-bad");
-        if (ampFinal !== null) {
-          el.classList.add(ampFinal > seuilFinal ? "amp-bad" : "amp-ok");
+        if (ampBrute !== null) {
+          el.classList.add(ampBrute > seuilFinal ? "amp-bad" : "amp-ok");
         }
       }
 
       var restVal = document.getElementById("rest-" + i);
       if (!restVal) return;
 
-      var next = i + 1;
+      var row = restVal.parentNode;
+      var iconEl = document.getElementById("rest-icon-" + i);
+      row.classList.remove("ok", "bad", "ongoing");
+      if (iconEl) iconEl.textContent = "";
+
+      var nxtRaw = state.days[i + 1];
+
+      // next = premier jour travaille apres i (ignore les RP intermediaires)
+      var next = nextWorked(i);
+
+      // Repos en cours : le suivant immediat est RP ET le prochain jour travaille
+      // n'a pas encore d'horaires saisis (repos pas encore calculable)
+      if (nxtRaw && nxtRaw.rp && (next === null || restBefore(next) === null)) {
+        var endedAt = endAbs(i);
+        if (endedAt !== null) {
+          restVal.textContent = "en cours…";
+          row.classList.add("ongoing");
+          if (iconEl) iconEl.textContent = "↻";
+        }
+        return;
+      }
+
+      if (next === null) return;
       var p = prevWorked(next);
       var rest = restBefore(next);
       restVal.textContent = fmtDuration(rest);
 
-      var row = restVal.parentNode;
-      var iconEl = document.getElementById("rest-icon-" + i);
-      row.classList.remove("ok", "bad");
-      if (iconEl) iconEl.textContent = "";
       if (p === null || rest === null) return;
-      var numRP = i - p;
+      var numRP = next - p - 1;
       var effective = rest - numRP * DAY;
       var ok = effective >= restThreshold(state.days[p]);
       row.classList.add(ok ? "ok" : "bad");
